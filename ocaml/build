@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+echo 'module Presburger = Presburger_before;;' > def.ml
+ocamlbuild -build-dir _before main.native
+
+echo 'module Presburger = Presburger_after;;' > def.ml
+ocamlbuild -build-dir _after main.native

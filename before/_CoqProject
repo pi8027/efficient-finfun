@@ -1,0 +1,2 @@
+-R ~/src/coq/regular/ regular
+-R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp

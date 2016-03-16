@@ -1,0 +1,108 @@
+diff --git a/automata.v b/automata.v
+index e63d92e..305988a 100644
+--- a/automata.v
++++ b/automata.v
+@@ -1,5 +1,5 @@
+ (** Authors: Christian Doczkal and Jan-Oliver Kaiser *)
+-Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice fintype path fingraph  finfun  finset.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import misc regexp.
+ 
+ Set Implicit Arguments.
+diff --git a/dfa_to_re.v b/dfa_to_re.v
+index 8e4cd74..0f2ed25 100644
+--- a/dfa_to_re.v
++++ b/dfa_to_re.v
+@@ -1,6 +1,6 @@
+ (** Authors: Christian Doczkal and Jan-Oliver Kaiser *)
+ Require Import Recdef.
+-Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq fintype finset bigop.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import automata misc regexp.
+ 
+ Set Implicit Arguments.
+@@ -161,7 +161,7 @@ Section KleeneAlgorithm.
+                       (L^X x y).
+   Proof.
+     move => w. apply/idP/idP.
+-    - apply/(size_induction (f:=size)): w x y => w IHw x y.
++    - elim/(size_induction (f:=@size char)): w x y => w IHw x y.
+       move/L_split => [|[w1 [w2 [Hw' [H1 [Hw1 Hw2]]]]]].
+       + rewrite inE => ->. by rewrite orbT.
+       + move: (IHw w2 H1 z y Hw2) Hw' => H4 -> {IHw H1}.
+diff --git a/homomorphism.v b/homomorphism.v
+index c278827..d0a863e 100644
+--- a/homomorphism.v
++++ b/homomorphism.v
+@@ -1,5 +1,5 @@
+ (** Authors: Christian Doczkal and Jan-Oliver Kaiser *)
+-Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice fintype path fingraph  tuple finfun  finset.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import misc regexp automata dfa_to_re.
+ 
+ (** * Closure of Regular Languages under Homomorphisms *)
+diff --git a/misc.v b/misc.v
+index caee628..4e91264 100644
+--- a/misc.v
++++ b/misc.v
+@@ -1,5 +1,5 @@
+ (** Authors: Christian Doczkal and Jan-Oliver Kaiser *)
+-Require Import ssreflect ssrfun ssrnat seq ssrbool eqtype fintype choice finset.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ 
+ Set Implicit Arguments.
+ Unset Strict Implicit.
+diff --git a/myhill_nerode.v b/myhill_nerode.v
+index 2684d14..df869a8 100644
+--- a/myhill_nerode.v
++++ b/myhill_nerode.v
+@@ -1,5 +1,5 @@
+ (** Authors: Christian Doczkal and Jan-Oliver Kaiser *)
+-Require Import ssreflect ssrbool ssrnat fintype eqtype seq ssrfun ssrbool finset choice finfun.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import automata misc regexp.
+ 
+ Set Implicit Arguments.
+diff --git a/non_regular.v b/non_regular.v
+index 60dd204..edefa34 100644
+--- a/non_regular.v
++++ b/non_regular.v
+@@ -1,5 +1,5 @@
+ (** Authors: Christian Doczkal and Jan-Oliver Kaiser *)
+-Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice fintype path fingraph  tuple finfun  finset div.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import misc regexp automata dfa_to_re myhill_nerode homomorphism.
+ 
+ (** Regular Languages are Fully determined and since propositions
+diff --git a/pumping.v b/pumping.v
+index 269380d..bd7fefa 100644
+--- a/pumping.v
++++ b/pumping.v
+@@ -1,4 +1,4 @@
+-Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice fintype path fingraph finfun finset.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import misc regexp automata dfa_to_re non_regular.
+ 
+ Set Implicit Arguments.
+@@ -16,7 +16,7 @@ Lemma uniqFE (T : eqType) (s : seq T) :
+ Proof.
+   elim: s => //= a s IHs. rewrite negb_and negbK.
+   case/orP => [H | /IHs [b] [s1] [s2] [s3] e].
+-  - exists a; exists [::]. case: (splitP H) => s1 s2. by do 2 eexists.
++  - exists a; exists [::]. case: (path.splitP H) => s1 s2. by do 2 eexists.
+   - exists b. exists (a::s1). exists s2. exists s3. by rewrite e.
+ Qed.
+ 
+diff --git a/regexp.v b/regexp.v
+index a97bb85..a0b1f2d 100644
+--- a/regexp.v
++++ b/regexp.v
+@@ -5,7 +5,7 @@
+   DOI: 10.1007/978-3-642-25379-9_11
+ *)
+ (* begin hide *)
+-Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq fintype.
++Require Import mathcomp.ssreflect.all_ssreflect.
+ Require Import misc.
+ 
+ Set Implicit Arguments.
