@@ -15,6 +15,7 @@ rule token = parse
   | "/\\"           { AND }
   | "\\/"           { OR }
   | "->"            { IMPLY }
+  | "<->"           { IFF }
   | "<="            { LE }
   | "<"             { LT }
   | "="             { EQ }

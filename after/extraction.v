@@ -61,6 +61,8 @@ Extract Inlined Constant divn => "(fun n m -> if m = 0 then 0 else n / m)".
 
 Extract Inlined Constant modn => "(fun n m -> if m = 0 then n else n mod m)".
 
+Extract Inlined Constant nat_of_ord => "(fun _ i -> i)".
+
 (* int *)
 
 Extract Inductive
@@ -96,14 +98,16 @@ Extract Inlined Constant pred_of_simpl => "".
 
 Extract Inductive
   tuple_of => "array"
-                ["(fun tval -> Array.of_list tval)"]
+                ["Array.of_list"]
                 "(fun f t -> f (Array.to_list t))".
 
 Extract Constant tnth => "(fun _ t i -> t.(i))".
 
+(*
 Extract Constant map_tuple => "(fun _ f t -> Array.map f t)".
 
 Extract Constant ord_tuple => "(fun n -> Array.init n (fun n' -> n'))".
+*)
 
 Extract Constant codom_tuple =>
   "(fun t f ->
@@ -111,14 +115,20 @@ Extract Constant codom_tuple =>
      t.Finite.mixin.Finite.mixin_card
      (fun i -> f (EncDecDef.fin_decode t i)))".
 
+Extract Constant EncDecDef.fin_encode =>
+  "(fun t x -> (Finite.coq_class t).Finite.mixin.Finite.mixin_encode x)".
+
+Extract Constant EncDecDef.fin_decode =>
+  "(fun t i -> (Finite.coq_class t).Finite.mixin.Finite.mixin_decode i)".
+
 Extract Constant FinTuple.fin_encode =>
   "(fun n t x ->
-    let r = ref 0 in
-    Array.iteri (fun i xi ->
-      r := !r +
-           EncDecDef.fin_encode t x.(i) *
-           expn t.Finite.mixin.Finite.mixin_card i) x;
-    !r)".
+    let rec loop i acc =
+      if i = 0
+        then acc
+        else loop (i - 1) (acc * t.Finite.mixin.Finite.mixin_card +
+                           EncDecDef.fin_encode t x.(i))
+    in loop n 0)".
 
 Extract Constant FinTuple.fin_decode =>
   "(fun n t i ->
@@ -131,5 +141,17 @@ Extract Constant FunFinfun.fun_of_fin =>
   "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
 
 Extraction "../ocaml/presburger_after.ml"
-           f_divisible
+           f_divisible dfa_prune
            presburger_dec presburger_st_dec presburger_sat presburger_valid.
+
+(* matrix *)
+
+Definition matrix_mult_test (n : nat) :=
+  let mx := (\matrix_(i < n.+1, j < n.+1) (i%:Z + j%:Z))%R in
+  (mx *m mx)%R.
+
+Definition finfun_app_test (n : nat) :=
+  let f := [ffun i : 'I_n => i] in
+  \sum_i f i.
+
+Extraction "../ocaml/matrix_after.ml" matrix_mult_test finfun_app_test.

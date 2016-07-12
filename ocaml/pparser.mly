@@ -10,7 +10,7 @@ let rec index xs y =
 %token <string> VAR
 %token <int> CONST
 %token LPAREN RPAREN
-%token FORALL EXISTS DOT NEG AND OR IMPLY LE LT EQ
+%token FORALL EXISTS DOT NEG AND OR IMPLY IFF LE LT EQ
 %token ADD DIVISIBLE
 %token EOF SEMICOLON
 %start main
@@ -53,6 +53,9 @@ formula2:
 
 formula1:
   | formula2 IMPLY formula1 { fun ns -> Presburger.F_imply ($1 ns, $3 ns) }
+  | formula2 IFF formula2   { fun ns -> let f1 = $1 ns in let f2 = $3 ns in
+                                        Presburger.F_and (Presburger.F_imply (f1, f2),
+                                                          Presburger.F_imply (f2, f1)) }
   | formula2                { $1 }
 
 names:

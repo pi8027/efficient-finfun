@@ -788,13 +788,13 @@ Qed.
 (* decision procedures *)
 
 Definition presburger_dec_w fvs (f : formula fvs) w :=
-  w \in dfa_lang (dfa_prune (dfa_of_nformula (normal_f f))).
+  w \in dfa_lang (dfa_of_nformula (normal_f f)).
 
 Theorem presburger_dec_wP fvs (f : formula fvs) w :
   reflect (interpret_formula f (assign_of_word w)) (presburger_dec_w f w).
 Proof.
   have dec_dne P : decidable P -> ~ ~ P -> P by case.
-  rewrite /presburger_dec_w dfa_pruneP.
+  rewrite /presburger_dec_w.
   apply (iffP (dfa_of_nformula_correct _ _));
     apply nf_correct => fvs' f' assign' /=;
     rewrite -(cancel_woa_aow assign');
@@ -809,25 +809,24 @@ Theorem presburger_decP fvs (f : formula fvs) assign :
 Proof. by apply (iffP (presburger_dec_wP f _)); rewrite cancel_woa_aow. Qed.
 
 Definition presburger_st_dec (f : formula 0) :=
-  [::] \in dfa_lang (dfa_prune (dfa_of_nformula (normal_f f))).
+  [::] \in dfa_lang (dfa_of_nformula (normal_f f)).
 
 Theorem presburger_st_decP (f : formula 0) :
   reflect (interpret_formula f [ffun => 0]) (presburger_st_dec f).
 Proof.
   by move: (presburger_decP f [ffun => 0]);
-     rewrite /presburger_st_dec /presburger_dec /presburger_dec_w
-             !dfa_pruneP woa0.
+     rewrite /presburger_st_dec /presburger_dec /presburger_dec_w woa0.
 Qed.
 
 Definition presburger_sat fvs (f : formula fvs) :=
-  let A := dfa_prune (dfa_of_nformula (normal_f f)) in
+  let A := dfa_of_nformula (normal_f f) in
   has (dfa_fin A) (enum_reachable (dfa_s A)).
 
 Theorem presburger_satP fvs (f : formula fvs) :
   reflect (exists assign, interpret_formula f assign) (presburger_sat f).
 Proof.
   rewrite /presburger_sat.
-  set A := dfa_prune (dfa_of_nformula (normal_f f)).
+  set A := dfa_of_nformula (normal_f f).
   apply (iffP hasP); case.
   - move => q /reachable'P [] /= w -> H.
     exists (assign_of_word w); apply/presburger_dec_wP.
@@ -839,14 +838,14 @@ Proof.
 Qed.
 
 Definition presburger_valid fvs (f : formula fvs) :=
-  let A := dfa_prune (dfa_of_nformula (normal_f f)) in
+  let A := dfa_of_nformula (normal_f f) in
   all (dfa_fin A) (enum_reachable (dfa_s A)).
 
 Theorem presburger_validP fvs (f : formula fvs) :
   reflect (forall assign, interpret_formula f assign) (presburger_valid f).
 Proof.
   rewrite /presburger_valid.
-  set A := dfa_prune (dfa_of_nformula (normal_f f)).
+  set A := dfa_of_nformula (normal_f f).
   apply (iffP allP) => H.
   - move => assign; apply/presburger_decP;
       rewrite /presburger_dec /presburger_dec_w delta_accept.
