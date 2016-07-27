@@ -19,11 +19,9 @@ for i = 1 to 100 do
     let a_list = ref [] in
     for j = 1 to 5 do
         let (b_time, b_res) =
-          if i <= 100
-          then with_timer (fun _ -> Matrix_before.matrix_mult_test (i - 1))
-          else (0., Obj.magic ()) in
+          with_timer (fun _ -> Matrix_before.matrix_mult_test i) in
         let (a_time, a_res) =
-          with_timer (fun _ -> Matrix_after.matrix_mult_test (i - 1)) in
+          with_timer (fun _ -> Matrix_after.matrix_mult_test i) in
         b_list := b_time :: !b_list;
         a_list := a_time :: !a_list
     done;

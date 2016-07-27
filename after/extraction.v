@@ -147,7 +147,7 @@ Extraction "../ocaml/presburger_after.ml"
 (* matrix *)
 
 Definition matrix_mult_test (n : nat) :=
-  let mx := (\matrix_(i < n.+1, j < n.+1) (i%:Z + j%:Z))%R in
+  let mx := (\matrix_(i < n, j < n) (i%:Z + j%:Z))%R in
   (mx *m mx)%R.
 
 Definition finfun_app_test (n : nat) :=

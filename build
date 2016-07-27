@@ -1,0 +1,45 @@
+#!/bin/zsh
+
+COQLIB_LIST=("-R . \"\" -R ~/src/coq/regular/ regular -R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp" \
+             "-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp")
+
+foreach dir (before after)
+pushd $dir
+
+  COQLIB=$COQLIB_LIST[1]
+  shift COQLIB_LIST
+
+  export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
+  vfiles=(presburger.v extraction.v)
+  error=
+
+  puterr(){
+    echo $1 >&2
+    error=1
+  }
+
+  for f in $vfiles; do
+    tail -c 1 $f | grep -q . && puterr "$f: no newline at end of file"
+    tail -n 1 $f | grep -qv . && puterr "$f: trailing empty line"
+    grep --color=auto -H -n " * $" $f && error=1
+  done
+
+  [[ -n $error ]] && exit 1
+
+  make -j ${JOBS:-4} VFILES="$vfiles" COQLIBS="$COQLIB"
+
+popd
+end
+
+pushd ocaml
+
+  echo 'module Presburger = Presburger_before;;' > def.ml
+  ocamlbuild -build-dir _before presburger_main.native
+  
+  echo 'module Presburger = Presburger_after;;' > def.ml
+  ocamlbuild -build-dir _after presburger_main.native
+  
+  ocamlbuild -build-dir _matrix matrix_main.native
+  #ocamlbuild -build-dir _matrix -ocamlc ocamlcp matrix_main.byte
+
+popd
