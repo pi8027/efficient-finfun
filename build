@@ -1,7 +1,10 @@
 #!/bin/zsh
 
+COQBIN=/usr/local/coq8.5beta3/bin
 COQLIB_LIST=("-R . \"\" -R ~/src/coq/regular/ regular -R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp" \
              "-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp")
+
+pushd benchmark
 
 foreach dir (before after)
 pushd $dir
@@ -26,9 +29,9 @@ pushd $dir
 
   [[ -n $error ]] && exit 1
 
-  make -j ${JOBS:-4} VFILES="$vfiles" COQLIBS="$COQLIB"
+  make -j ${JOBS:-4} VFILES="$vfiles" PATH="$COQBIN:$PATH" COQLIBS="$COQLIB"
 
-popd
+popd # before, after
 end
 
 pushd ocaml
@@ -42,4 +45,5 @@ pushd ocaml
   ocamlbuild -build-dir _matrix matrix_main.native
   #ocamlbuild -build-dir _matrix -ocamlc ocamlcp matrix_main.byte
 
-popd
+popd # ocaml
+popd # benchmark
