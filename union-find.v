@@ -535,8 +535,9 @@ Definition munion x y : AState [:: (T, (T + R)%type)] unit :=
 Lemma run_munion x y : run_AState (munion x y) g = (tt, union x y).
 Proof.
 rewrite /union /= !run_mfind //=; last by apply acycle_compress.
-rewrite find_compress //; case: (altP eqP) => //= H.
-Abort.
+rewrite find_compress // /(classval (compress _ _)) compress_repr ?repr_find //.
+by case: (altP eqP) => //= H; case: (boolP (cmp _ _)).
+Qed.
 
 End union.
 
