@@ -155,7 +155,7 @@ Qed.
 
 Arguments connectP [x y].
 
-Notation find x := (iter #|T| succ x).
+Definition find x := iter #|T| succ x.
 Definition findeq x y := find x == find y.
 
 Definition wacycle x := repr (find x).
@@ -203,15 +203,15 @@ Lemma find_succ : succ (find x) = find x.
 Proof. by rewrite {1}/succ; case/reprP: Hx => x' ->. Qed.
 
 Lemma succ_find : find (succ x) = find x.
-Proof. by rewrite -iterSr /= find_succ. Qed.
+Proof. by rewrite /find -iterSr /= find_succ. Qed.
 
 Lemma find_iter n : iter n succ (find x) = find x.
 Proof. by elim: n => // n IH; rewrite iterSr find_succ IH. Qed.
 
 Lemma iter_find n : find (iter n succ x) = find x.
-Proof. by rewrite -iter_add addnC iter_add find_iter. Qed.
+Proof. by rewrite /find -iter_add addnC iter_add find_iter. Qed.
 
-Lemma findI : find (find x) = find x. Proof. by rewrite find_iter. Qed.
+Lemma findI : find (find x) = find x. Proof. by rewrite /find find_iter. Qed.
 
 Lemma iter_invariance n : 0 < n -> (x == iter n succ x) = (x == succ x).
 Proof.
@@ -247,13 +247,13 @@ End wacycle.
 
 Lemma wacycle_repr x : repr x -> wacycle x.
 Proof.
-rewrite /wacycle => H; suff <-: x = iter #|T| succ x by [].
-by elim: #|T| => //= n <-; move/eqP: H; rewrite /succ => ->.
+rewrite /wacycle => H; suff <-: x = find x by [].
+by rewrite /find; elim: #|T| => //= n <-; move/eqP: H; rewrite /succ => ->.
 Qed.
 
 Lemma wacycle_succ x : wacycle (succ x) = wacycle x.
 Proof.
-apply/reprP/reprP; case => x' H; exists x';
+rewrite /wacycle/find; apply/reprP/reprP; case => x' H; exists x';
   [ move: H; rewrite -iterSr | by rewrite -iterSr /= {1}/succ !H].
 have/trajectP [i Hi -> H] : iter #|T|.+1 succ x \in orbit succ x
   by rewrite -fconnect_orbit fconnect_iter.
@@ -291,8 +291,6 @@ End static.
 
 Arguments connectP [g x y].
 
-Notation find g := (@iter T #|T| (succ g)).
-
 Section dynamic.
 
 Variable (g : G).
@@ -304,7 +302,7 @@ Definition compress x :=
 Lemma find_subst_separated x y y' :
   ~~ connect g x y -> find (ffun_subst y y' g) x = find g x.
 Proof.
-elim: #|T| x => //= n IH x Hxy; rewrite !/(succ _ _) ffunE IH //.
+rewrite /find; elim: #|T| x => //= n IH x Hxy; rewrite !/(succ _ _) ffunE IH //.
 by case: (_ =P y) Hxy => // <-; rewrite connect_iter.
 Qed.
 
@@ -355,7 +353,7 @@ Lemma repr_compress x y : repr g y = repr (compress x) y.
 Proof.
 rewrite /repr /classval /compress !ffunE /(succ _ _).
 case: ifP; case_eq (g y) => // b Hy' /andP [] /trajectP [i Hi Hy] /negP [].
-move/ltnW/subnK: (leq_trans Hi (max_card _)) => <-.
+rewrite /find; move/ltnW/subnK: (leq_trans Hi (max_card _)) => <-.
 by rewrite iter_add -Hy; apply/eqP;
    elim: (#|T| - i) => //= {i Hi Hy} i <-; rewrite /succ Hy'.
 Qed.
@@ -385,8 +383,9 @@ Qed.
 
 Lemma compress_repr x y : repr g x -> compress y x = inr (classval g x).
 Proof.
-rewrite /repr /classval ffunE; case: andP; case_eq (g x) => // a H [] /trajectP
-  [i] /ltnW /leq_trans /(_ (max_card _)) /subnK <- Hx /eqP []; subst x.
+rewrite /repr /classval ffunE /find; case: andP;
+  case_eq (g x) => // a H [] /trajectP [i] /ltnW /leq_trans /(_ (max_card _))
+                   /subnK <- Hx /eqP []; subst x.
 by rewrite iter_add; elim: (#|T| - i) => //= j <-; rewrite /(succ _ _) H.
 Qed.
 
@@ -396,11 +395,11 @@ move => H.
 suff [i /subnK <- ->]:
   exists2 i, #|T| <= i & find (compress y) x = iter i (succ g) x
   by rewrite iter_add /= find_iter.
-elim: #|T|; [ exists 0 | ] => //= i [j Hj] ->;
+rewrite /find; elim: #|T|; [ exists 0 | ] => //= i [j Hj] ->;
   rewrite succ_compress ?wacycle_iter //; case: ifP => H0; last by exists j.+1.
 exists (maxn #|T| j.+1); first by rewrite leq_max ltnS Hj orbT.
-by rewrite maxnE iter_add iter_find // (connect_findeq _ H0) ?iter_find //
-           (wacycle_connect H0) wacycle_iter.
+by rewrite maxnE iter_add -/(find _ _) iter_find // (connect_findeq _ H0)
+           ?iter_find // (wacycle_connect H0) wacycle_iter.
 Qed.
 
 Lemma wacycle_compress x y : wacycle g x -> wacycle (compress y) x.
@@ -536,8 +535,19 @@ Lemma run_munion x y : run_AState (munion x y) g = (tt, union x y).
 Proof.
 rewrite /union /= !run_mfind //=; last by apply acycle_compress.
 rewrite find_compress // /(classval (compress _ _)) compress_repr ?repr_find //.
-by case: (altP eqP) => //= H; case: (boolP (cmp _ _)).
+by case: (altP eqP) => //= H; case: ifP.
 Qed.
+
+Lemma union_findeq x y a b :
+  findeq (union x y) a b =
+  [|| findeq g a b,
+      findeq g a x && findeq g b y | findeq g a y && findeq g b x].
+Proof.
+rewrite /union /findeq; case: ifP => [| /negbT H];
+  first by rewrite !find_compress ?wacycle_compress // => /eqP ->;
+           apply/idP/idP => [-> | /or3P []] // /andP [] /eqP -> /eqP ->.
+case: ifP => //.
+Abort.
 
 End union.
 
