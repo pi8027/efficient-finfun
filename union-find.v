@@ -161,6 +161,8 @@ Definition findeq x y := find x == find y.
 Definition wacycle x := repr (find x).
 Definition acycle := forall x, wacycle x.
 
+Lemma connect0 x : connect x x. Proof. by apply connect0. Qed.
+
 Lemma connect1 x : connect x (succ x). Proof. by apply fconnect1. Qed.
 
 Lemma connect_iter n x : connect x (iter n succ x).
@@ -306,7 +308,7 @@ rewrite /find; elim: #|T| x => //= n IH x Hxy; rewrite !/(succ _ _) ffunE IH //.
 by case: (_ =P y) Hxy => // <-; rewrite connect_iter.
 Qed.
 
-Lemma wacycle_subst x y y' :
+Lemma wacycle_subst_separated x y y' :
   ~~ connect g x y -> wacycle (ffun_subst y y' g) x = wacycle g x.
 Proof.
 by move => Hxy; rewrite /wacycle find_subst_separated // /repr /classval ffunE;
@@ -316,7 +318,7 @@ Qed.
 Lemma wacycle_substR x y a :
   wacycle (ffun_subst x (inr a) g) y = connect g y x || wacycle g y.
 Proof.
-case: (altP connectP) => /=; last apply wacycle_subst.
+case: (altP connectP) => /=; last apply wacycle_subst_separated.
 case => ys Hys Hx; subst x.
 elim/path_ind: y ys / Hys => [y | y ys H Hys] /=;
   first by apply/repr_iter/reprP; rewrite ffunE eqxx; exists a.
@@ -325,6 +327,35 @@ move: H Hys.
 rewrite /repr /classval /succ; case_eq (g y) => // y' H H0 H1 H2 _; subst y.
 by apply wacycle_repr; rewrite /repr /classval ffunE eqxx.
 Qed.
+
+Lemma wacycle_substL x y z :
+  wacycle (ffun_subst x (inl y) g) z =
+  if connect g z x then ~~ connect g y x && wacycle g y else wacycle g z.
+Proof.
+case: (altP connectP) => [ [] zs Hzs -> {x} | /wacycle_subst_separated -> // ].
+apply eq_trans with (wacycle (ffun_subst (last z zs) (inl y) g) y);
+  first by elim/path_ind: z zs / Hzs => /= [z | z zs H Hzs H0];
+    rewrite -wacycle_succ /(succ (ffun_subst _ _ _)) ffunE ?eqxx //; case: ifP.
+move: (last _ _) => {z zs Hzs} x; case: (altP connectP);
+  last by apply wacycle_subst_separated.
+case => ys' /shortenP [] ys; rewrite -/(path _ _) => Hys H _ Hx;
+  subst x => {ys'} /=; apply/negbTE.
+suff Hys': path (ffun_subst (last y ys) (inl y) g) y (rcons ys y)
+  by apply/negP => /path_uniq /(_ Hys') /=; rewrite mem_rcons inE eqxx.
+rewrite -cats1 /path cat_path -/(path _ _ _) /= ffunE !eqxx !andbT.
+elim/path_ind: y ys / Hys (inl y) H => // y ys H Hys IH a /andP [H0 H1] /=.
+by rewrite IH // andbT ffunE; case: (altP (y =P _)) H0 => [{1}-> | _];
+  [ rewrite mem_last | rewrite inE /succ; case_eq (g y) => b; rewrite eqxx ].
+Qed.
+
+Lemma wacycle_subst x y z :
+  wacycle (ffun_subst x y g) z =
+  match y with
+    | inl y => if connect g z x
+               then ~~ connect g y x && wacycle g y else wacycle g z
+    | inr a => connect g z x || wacycle g z
+  end.
+Proof. by case: y => y; rewrite (wacycle_substL, wacycle_substR). Qed.
 
 Lemma path_subst_separated x y z xs :
   ~~ connect g x y -> path (ffun_subst y z g) x xs = path g x xs.
@@ -410,11 +441,13 @@ Qed.
 Variable (Hg : acycle g).
 
 Lemma acycle_substL x y : ~~ connect g y x -> acycle (ffun_subst x (inl y) g).
+Proof. by move => Hyx z; rewrite wacycle_subst Hyx /=; case: ifP. Qed.
+(*
 Proof.
 set g' := ffun_subst x (inl y) g => Hyx z.
-case: (boolP (connect g z x)) => Hzx; last by rewrite wacycle_subst.
+case: (boolP (connect g z x)) => Hzx; last by rewrite wacycle_subst_separated.
 suff/wacycle_connect ->: connect g' z x
-  by rewrite -wacycle_succ /succ ffunE eqxx wacycle_subst.
+  by rewrite -wacycle_succ /succ ffunE eqxx wacycle_subst_separated.
 case/connectP: Hzx => zs Hzs Hx; subst x; apply/connectP; exists zs => //.
 subst g'; elim/path_ind: z zs / Hzs Hyx => //= z zs H Hzs IH H0.
 move: H Hzs; rewrite IH // {IH H0} andbT /repr /classval /succ ffunE.
@@ -423,6 +456,7 @@ suff/negbTE ->: z != last z' zs by [].
 have/(path_notin (Hg _)): path g z (z' :: zs) by rewrite /= Hz eqxx.
 by apply/contra => /eqP {1}->; rewrite mem_last.
 Qed.
+*)
 
 Lemma find_substL_graft x y :
   ~~ findeq g x y -> find (ffun_subst (find g x) (inl y) g) x = find g y.
@@ -432,7 +466,7 @@ elim/path_ind: x xs / Hxs Hxy H => /= [x H _ | x xs H _ H0 H1 H2];
   [have {H} H: ~~ connect g y x by apply/contra: H => /connect_findeq -> |];
   rewrite -succ_find.
 - by rewrite /(succ _ _) ffunE eqxx find_subst_separated.
-- by rewrite -wacycle_succ /(succ _ _) ffunE eqxx wacycle_subst.
+- by rewrite -wacycle_succ /(succ _ _) ffunE eqxx wacycle_subst /= (negbTE H).
 - by rewrite /(succ (ffun_subst _ _ _) _) ffunE -{2}H2 find_invariance //
              -reprE // (negbTE H) -/(succ _ _) H0 // succ_find.
 - by apply/acycle_substL; apply/contra: H1 => /connect_findeq -> //;
@@ -516,7 +550,7 @@ Definition union x y :=
   let x' := find g x in let y' := find g y in
   let v  := Rop (classval g x') (classval g y') in
   let g' := compress (compress g x) y in
-  if x' == y' then g' else
+  if findeq g x y then g' else
     if cmp (classval g x') (classval g y')
     then ffun_subst y' (inr v) (ffun_subst x' (inl y') g')
     else ffun_subst x' (inr v) (ffun_subst y' (inl x') g').
@@ -533,7 +567,7 @@ Definition munion x y : AState [:: (T, (T + R)%type)] unit :=
 
 Lemma run_munion x y : run_AState (munion x y) g = (tt, union x y).
 Proof.
-rewrite /union /= !run_mfind //=; last by apply acycle_compress.
+rewrite /union /findeq /= !run_mfind //=; last by apply acycle_compress.
 rewrite find_compress // /(classval (compress _ _)) compress_repr ?repr_find //.
 by case: (altP eqP) => //= H; case: ifP.
 Qed.
@@ -546,7 +580,7 @@ Proof.
 rewrite /union /findeq; case: ifP => [| /negbT H];
   first by rewrite !find_compress ?wacycle_compress // => /eqP ->;
            apply/idP/idP => [-> | /or3P []] // /andP [] /eqP -> /eqP ->.
-case: ifP => //.
+case: ifP => _.
 Abort.
 
 End union.
@@ -556,6 +590,8 @@ End monadic.
 End union_find.
 
 Section weighted_union.
+
+
 
 End weighted_union.
 
