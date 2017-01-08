@@ -637,17 +637,18 @@ rewrite /union /findeq; case: ifP => [| /negbT H];
   first by rewrite !find_compress ?wacycle_compress // => /eqP ->;
            apply/idP/idP => [-> | /or3P []] // /andP [] /eqP -> /eqP ->.
 set g' := compress (compress g x) y.
-have Hg' z: find g z = find g' z by rewrite !(find_compress, wacycle_compress).
+have Hg1: acycle g' by move => z; rewrite !wacycle_compress.
+have Hg2 z: find g z = find g' z by rewrite !(find_compress, wacycle_compress).
 have Hxy: ((~~ connect g' (find g x) (find g y)) *
            (~~ connect g' (find g y) (find g x)))%type by
   split; apply/contra: H => /connect_findeq;
   rewrite !(wacycle_compress, find_compress, findI) // => ->.
 case: ifP => _;
-  rewrite !find_substR ?(wacycle_subst, wacycle_compress, Hxy, if_same) // !Hg'
-          !connect_substL -!findeq_connect /findeq ?wacycle_compress //;
+  rewrite !find_substR ?Hg2 ?find_substL
+          ?(wacycle_subst, (fun z => esym (Hg2 z)), Hg1, Hxy, if_same) // !Hg2
+          !connect_substL -!findeq_connect // /findeq;
   do !case: (find _ _ =P find _ _) => //=; try congruence.
-
-Abort.
+Qed.
 
 End union.
 
