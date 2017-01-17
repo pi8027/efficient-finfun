@@ -1,110 +1,18 @@
 From mathcomp Require Import all_ssreflect.
+Require Import core.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 (******************************************************************************)
-(* General framework for mutable array programming                            *)
-(******************************************************************************)
-
-Module Monad.
-
-Structure type : Type := Pack {
-  base :> Type -> Type;
-  runt : Type -> Type;
-  run : forall {A}, base A -> runt A;
-  ret : forall {A}, A -> base A;
-  bind : forall {A B}, base A -> (A -> base B) -> base B; }.
-
-End Monad.
-
-Notation "x <- y ; f" :=
-  (Monad.bind y (fun x => f)) (at level 65, right associativity).
-Notation "y ;; f" :=
-  (Monad.bind y (fun _ => f)) (at level 65, right associativity).
-
-Notation monadType := Monad.type.
-Notation MonadType := Monad.Pack.
-
-Coercion Monad.base : monadType >-> Funclass.
-
-(* Identity monad *)
-
-Record Identity (A : Type) := identity { runIdentity : A }.
-
-Canonical Identity_monadType :=
-  @MonadType
-    Identity id runIdentity identity
-    (fun A B (x : Identity A) (f : A -> Identity B) => f (runIdentity x)).
-
-(* Array state monad *)
-
-Definition ffun_subst (I : finType) (T : Type) i x (f : {ffun I -> T}) :=
-  [ffun j => if j == i then x else f j].
-
-Lemma subst_id (I : finType) (T : Type) (f : {ffun I -> T}) i x :
-  x = f i -> ffun_subst i x f = f.
-Proof. by move ->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
-
-Inductive AState : seq (finType * Type) -> Type -> Type :=
-  | astate_ret : forall {sig A}, A -> AState sig A
-  | astate_bind :
-      forall {sig A B}, AState sig A -> (A -> AState sig B) -> AState sig B
-  | astate_lift :
-      forall {Idx T sig A}, AState sig A -> AState ((Idx, T) :: sig) A
-  | astate_get : forall {I : finType} {T sig}, I -> AState ((I, T) :: sig) T
-  | astate_put :
-      forall {I : finType} {T sig}, I -> T -> AState ((I, T) :: sig) unit.
-
-Fixpoint runt_AState (sig : seq (finType * Type)) (A : Type) : Type :=
-  if sig is (Idx, T) :: sig'
-  then {ffun Idx -> T} -> runt_AState sig' (A * {ffun Idx -> T})
-  else A.
-
-Fixpoint run_AState_ret sig A (x : A) : runt_AState sig A :=
-  match sig return runt_AState sig A with
-    | [::] => x
-    | (Idx, T) :: sig' => fun a => run_AState_ret sig' (x, a)
-  end.
-
-Fixpoint run_AState_bind sig A B :
-         runt_AState sig A -> (A -> runt_AState sig B) -> runt_AState sig B :=
-  match sig return
-        runt_AState sig A -> (A -> runt_AState sig B) -> runt_AState sig B with
-    | [::] => fun x f => f x
-    | (Idx, T) :: sig' =>
-      fun x f a => run_AState_bind (x a) (fun v => f v.1 v.2)
-  end.
-
-(*
-Definition run_AState_lift Idx T sig A (x : runt_AState sig A) :
-  runt_AState ((Idx, T) :: sig) A :=
-  fun a => run_AState_bind x (fun x' => run_AState_ret sig (x', a)).
-*)
-
-Definition run_AState : forall sig A, AState sig A -> runt_AState sig A :=
-  @AState_rect
-    (fun sig A _ => runt_AState sig A)
-    (fun sig _ x => run_AState_ret sig x)
-    (fun sig _ _ _ x _ f => run_AState_bind x f)
-    (fun I T sig A _ x a =>
-       run_AState_bind x (fun x' => run_AState_ret sig (x', a)))
-    (fun I T sig i a => run_AState_ret sig (a i, a))
-    (fun I T sig i x a => run_AState_ret sig (tt, ffun_subst i x a)).
-
-Canonical AState_monadType sig :=
-  @MonadType (AState sig) (runt_AState sig)
-             (@run_AState sig) (@astate_ret sig) (@astate_bind sig).
-
-(******************************************************************************)
 (* Union-find                                                                 *)
 (******************************************************************************)
 
-Module union_find.
 Section union_find.
 
-Variable (T : finType) (R : eqType) (Ridx : R) (Rop : Monoid.com_law Ridx).
+Variable (R : eqType) (Ridx : R) (Rop : Monoid.com_law Ridx) (cmp : rel R)
+         (T : finType).
 Definition G := {ffun T -> T + R}.
 
 Section static.
@@ -144,16 +52,15 @@ by rewrite /succ; case_eq (g x) => x' Hx';
    [ apply/connect1/eqP | apply connect0 ].
 Qed.
 
-(*
 Lemma connectP' (x y : T) :
   reflect (exists2 i : nat, i < order succ x & y = iter i succ x) (connect x y).
 Proof.
 apply (iffP idP); last by case => i H -> {y}; apply fconnect_iter.
 by rewrite /connect fconnect_orbit /orbit => /trajectP [] i H -> {y}; exists i.
 Qed.
-*)
 
 Arguments connectP [x y].
+Arguments connectP' [x y].
 
 Definition find x := iter #|T| succ x.
 Definition findeq x y := find x == find y.
@@ -167,6 +74,15 @@ Lemma connect1 x : connect x (succ x). Proof. by apply fconnect1. Qed.
 
 Lemma connect_trans x y z : connect x y -> connect y z -> connect x z.
 Proof. by apply connect_trans. Qed.
+
+Lemma connectE x y : connect x y = (x == y) || connect (succ x) y.
+Proof.
+apply/idP/idP => [/connectP [xs Hxs ->] | /orP []].
+- by case: xs Hxs; rewrite ?eqxx //= => x' xs /andP [] /eqP H H0;
+     rewrite /succ H; apply/orP/or_intror; apply/connectP; exists xs.
+- by move/eqP => ->; apply connect0.
+- by apply/connect_trans/connect1.
+Qed.
 
 Lemma connect_iter n x : connect x (iter n succ x).
 Proof. by apply fconnect_iter. Qed.
@@ -192,17 +108,18 @@ Proof. by move/eqP => H; rewrite /repr /succ !H. Qed.
 Lemma repr_iter n x : repr x -> repr (iter n succ x).
 Proof. by move => H; elim: n => //= n; apply repr_succ. Qed.
 
+Lemma path_traject x xs : path x xs -> x :: xs = traject succ x (size xs).+1.
+Proof. by move => H; elim/path_ind: x xs / H => //= x xs H Hxs [] {1}->. Qed.
+
 Lemma full_path_connect x xs :
   path x xs -> repr (last x xs) -> x :: xs =i connect x.
 Proof.
-move => H H0 y; apply/idP/connectP => [H1 | [xs' H1 H2]];
-  first by case: {H1} (splitPl H1) H H0 => xs1 xs2;
-    rewrite /path cat_path last_cat /= -!/(path _ _) => Hy /andP [] H H0 H1;
-    subst y; exists xs1.
-subst y; elim/path_ind: x xs' / H1 xs H H0;
-  first by move => *; apply/orP/or_introl.
-by move => /= x' xs' H Hxs' IH xs Hxs H0; rewrite inE; apply/orP/or_intror;
-  elim/path_ind: x' xs / Hxs Hxs' IH H H0 => [/= x' _ _ /negP |]; auto.
+move => H H0 y; apply/esym.
+rewrite unfold_in -/(fingraph.connect _ _ _) -/(connect _ _).
+elim/path_ind: x xs / H H0 => /= [x H | x xs H Hxs IH H0];
+  last by rewrite inE -IH // connectE eq_sym.
+rewrite !inE; apply/idP/eqP => [| ->]; last by apply connect0.
+ by case/connectP => -[| x' xs] //= /andP []; rewrite (eqP H) eqE.
 Qed.
 
 Section wacycle.
@@ -265,8 +182,7 @@ Lemma wacycle_succ x : wacycle (succ x) = wacycle x.
 Proof.
 rewrite /wacycle/find; apply/reprP/reprP; case => x' H; exists x';
   [ move: H; rewrite -iterSr | by rewrite -iterSr /= {1}/succ !H].
-have/trajectP [i Hi -> H] : iter #|T|.+1 succ x \in orbit succ x by
-  rewrite -fconnect_orbit fconnect_iter.
+case/connectP': (connect_iter #|T|.+1 x) => i Hi -> H.
 have/subnK <- : i <= #|T| by apply/ltnW/(leq_trans Hi)/subset_leq_card/subsetP.
 by rewrite iter_add; elim: (#|T| - i) => //= i' IH; rewrite {1}/succ IH.
 Qed.
@@ -278,12 +194,7 @@ Lemma wacycle_find x : wacycle (find x) = wacycle x.
 Proof. by rewrite /find wacycle_iter. Qed.
 
 Lemma wacycle_connect x y : connect x y -> wacycle x = wacycle y.
-Proof.  by move/iter_findex <-; rewrite wacycle_iter. Qed.
-
-(*
-Lemma repr_find x : wacycle x -> repr (find x).
-Proof. by move => H; rewrite reprE ?wacycle_iter // find_succ. Qed.
-*)
+Proof. by move/iter_findex <-; rewrite wacycle_iter. Qed.
 
 Lemma findeq_connect x y : wacycle x -> findeq x y = connect x (find y).
 Proof.
@@ -312,13 +223,14 @@ Proof. by move => H /(path_uniq H) /card_uniqP /= <-; apply max_card. Qed.
 End static.
 
 Arguments connectP [g x y].
+Arguments connectP' [g x y].
 
 Section dynamic.
 
 Variable (g : G).
 
 Definition compress x :=
-  [ffun y => if (y \in orbit (succ g) x) && (y != find g x)
+  [ffun y => if connect g x y && (y != find g x)
              then inl (find g x) else g y].
 
 Lemma succ_subst x y z :
@@ -362,11 +274,11 @@ apply eq_trans with (wacycle (ffun_subst (last z zs) (inl y) g) y);
            rewrite -wacycle_succ succ_subst ?eqxx //; case: ifP.
 move: (last _ _) => {z zs Hzs} x; case: (altP connectP);
   last by apply wacycle_subst_separated.
-case => ys' /shortenP [] ys; rewrite -/(path _ _) => Hys H _ Hx;
+case => ys' /shortenP [] ys; rewrite -/(path _) => Hys H _ Hx;
   subst x => {ys'} /=; apply/negbTE.
 suff Hys': path (ffun_subst (last y ys) (inl y) g) y (rcons ys y) by
   apply/negP => /path_uniq /(_ Hys') /=; rewrite mem_rcons inE eqxx.
-rewrite -cats1 /path cat_path -/(path _ _ _) /= ffunE !eqxx !andbT.
+rewrite -cats1 /path cat_path -/(path _) /= ffunE !eqxx !andbT.
 elim/path_ind: y ys / Hys (inl y) H => // y ys H Hys IH a /andP [H0 H1] /=.
 by rewrite IH // andbT ffunE; case: (altP (y =P _)) H0 => [{1}-> | _];
    [ rewrite mem_last | rewrite inE /succ; case (g y) => b; rewrite eqxx ].
@@ -386,9 +298,8 @@ Lemma find_substR x y a :
 Proof.
 move => H; case: (boolP (connect _ _ _)) => H0;
   last by rewrite find_subst_separated.
-case/connectP: H0 => xs' /shortenP [xs];
-  rewrite -/(path _ _ _) => Hxs H0 _ -> {xs'}.
-have {H0 Hxs} Hxs: path (ffun_subst (last x xs) (inr a) g) x xs by
+case/connectP: H0 => xs' /shortenP [xs]; rewrite -/(path _) => Hxs H0 _ ->.
+have {H0 Hxs xs'} Hxs: path (ffun_subst (last x xs) (inr a) g) x xs by
   elim/path_ind: x xs / Hxs H0 {H} => // x xs H0 Hxs IH /andP [H1 H2] /=;
   rewrite {}IH // andbT ffunE; move: H0 H1; rewrite /repr /classval /succ;
   case: (x =P _); case: (g x) => x'; rewrite ?eqxx //= => ->; rewrite mem_last.
@@ -399,6 +310,28 @@ case: (altP (x =P _)) => //= H /eqP H0 H1 H2; move: (H2).
 rewrite -wacycle_succ /succ H0 => H2'.
 by rewrite -{2}IH // -succ_find ?wacycle_subst ?H2 ?orbT //
            succ_subst (negbTE H) /succ H0.
+Qed.
+
+Lemma connect_substL x y z :
+  connect (ffun_subst y (inl z) g) x z = connect g x y || connect g x z.
+Proof.
+apply/idP/idP => [/connectP | /orP [] /connectP [] xs' /shortenP [xs]].
+- case => xs Hxs Hz; subst z.
+  by elim: xs x Hxs => /= [x _ | x' xs IH x /andP []];
+     rewrite ?(connect0, orbT) // ffunE; case: (altP (x =P y)) => [-> |];
+     rewrite ?connect0 // => H /eqP H0 /IH /orP [] H1; apply/orP;
+     [left | right]; apply connect_succL; rewrite /succ H0.
+- rewrite -/(path _) => Hxs Hxs' _ -> {y xs'}.
+  apply connect_trans with (last x xs);
+    last by apply connect_succL; rewrite succ_subst eqxx connect0.
+  elim/path_ind: x xs / Hxs Hxs'; first by move => *; apply connect0.
+  move => x xs _ _ IH /andP [H] /IH {IH} /=; apply connect_trans.
+  by apply connect_succL; rewrite succ_subst; case: eqP H;
+     [ move => {1}->; rewrite mem_last | move => *; apply connect0 ].
+- rewrite -/(path _) => Hxs Hxs' _ -> {z xs'}.
+  elim/path_ind: x xs / Hxs Hxs'; first by move => *; apply connect0.
+  by move => x xs H _ IH /andP [H0] /IH {IH} /= H1; apply connect_succL;
+    rewrite succ_subst; case: eqP => *; [ apply connect0 | apply H1 ].
 Qed.
 
 Lemma path_subst_separated x y z xs :
@@ -427,7 +360,7 @@ Qed.
 Lemma repr_compress x y : repr g y = repr (compress x) y.
 Proof.
 rewrite /repr /classval /compress !ffunE /(succ _ _).
-case: ifP; case_eq (g y) => // b Hy' /andP [] /trajectP [i Hi Hy] /negP [].
+case: ifP; case_eq (g y) => // b Hy' /andP [] /connectP' [i Hi Hy] /negP [].
 rewrite /find; move/ltnW/subnK: (leq_trans Hi (max_card _)) => <-.
 by rewrite iter_add -Hy; apply/eqP;
    elim: (#|T| - i) => //= {i Hi Hy} i <-; rewrite /succ Hy'.
@@ -442,7 +375,7 @@ rewrite {}IH // ?wacycle_succ // andbT ffunE.
 case: (altP andP) => [[] H2 |];
   last by move: H; rewrite /repr /classval /(succ _ _);
           case: (g x) => x'; rewrite eqxx.
-case/trajectP: H2 Hxs H H0 H1 => i Hi ->; rewrite wacycle_iter => Hxs H H0 H1.
+case/connectP': H2 Hxs H H0 H1 => i Hi ->; rewrite wacycle_iter => Hxs H H0 H1.
 by case/negP: H1; apply connect_trans with (iter i.+1 (succ g) y);
    rewrite ?connect_iter //=; apply/connectP; exists xs.
 Qed.
@@ -451,15 +384,15 @@ Lemma succ_compress x y :
   wacycle g x ->
   succ (compress y) x = if connect g y x then find g y else succ g x.
 Proof.
-by move => H; rewrite /(succ _ _) ffunE; case: (altP andP); case: ifP => // H0;
-  rewrite -fconnect_orbit -/(connect _) H0 /= ?negbK -/(succ _ _);
-  [ case | move/eqP => ->; rewrite find_succ // (wacycle_connect H0) ].
+by move => H; rewrite /succ ffunE;
+   case: (boolP (connect g y x)) => //=; case: eqP => //= H0;
+   rewrite -/(succ _ _) H0; rewrite find_succ // -wacycle_find -H0.
 Qed.
 
 Lemma compress_repr x y : repr g x -> compress y x = inr (classval g x).
 Proof.
 rewrite /repr /classval ffunE /find; case: andP;
-  case_eq (g x) => // a H [] /trajectP [i] /ltnW /leq_trans /(_ (max_card _))
+  case_eq (g x) => // a H [] /connectP' [i] /ltnW /leq_trans /(_ (max_card _))
                    /subnK <- Hx /eqP []; subst x.
 by rewrite iter_add; elim: (#|T| - i) => //= j <-; rewrite /(succ _ _) H.
 Qed.
@@ -475,6 +408,18 @@ rewrite /find; elim: #|T|; [ exists 0 | ] => //= i [j Hj] ->;
 exists (maxn #|T| j.+1); first by rewrite leq_max ltnS Hj orbT.
 by rewrite maxnE iter_add -/(find _ _) iter_find // (connect_findeq _ H0)
            ?iter_find // (wacycle_connect H0) wacycle_iter.
+Qed.
+
+Lemma connect_compress x y z : connect (compress z) x y -> connect g x y.
+Proof.
+case/connectP => xs Hxs ->;
+  elim/path_ind: x xs / Hxs => [| x xs H]; first by apply connect0.
+rewrite /(succ _ _) ffunE /=; case: (altP andP);
+  last by rewrite -/(succ g x) => H0 H1; apply connect_succL.
+by case: xs => [[] H0 _ | x' xs [] H0] _ _ /=; [ | apply connect_trans ];
+   case/connectP': H0 => i /ltnW /leq_trans /(_ (max_card _)) /subnK Hi ->;
+   rewrite /find -Hi iter_add; elim: (#|T| - i); try apply connect0;
+   move => n /= H0; apply/(connect_trans H0)/connect1.
 Qed.
 
 Lemma wacycle_compress x y : wacycle g x -> wacycle (compress y) x.
@@ -496,7 +441,7 @@ Lemma find_substL_graft x y :
   find (ffun_subst (find g x) (inl y) g) x = find g y.
 Proof.
 case/connectP: (connect_find g x) => xs' /shortenP [xs];
-  rewrite -/(path _ _ _) => Hxs H _ -> H0 {xs'}.
+  rewrite -/(path _) => Hxs H _ -> H0 {xs'}.
 elim/path_ind: x xs / Hxs H H0 => /= [x _ H0 | x xs H Hxs IH /andP [] H0 H1 H2];
   first by rewrite -succ_find ?wacycle_subst ?connect0 ?H0 //=
                    /succ ffunE eqxx find_subst_separated.
@@ -514,30 +459,6 @@ by rewrite /findeq; case: (altP (find g z =P _)) => [<- Hzy | Hzx Hxy];
    apply/contra: Hzx => /connect_findeq -> //; rewrite findI.
 Qed.
 
-Lemma connect_substL x y z :
-  connect (ffun_subst y (inl z) g) x z = connect g x y || connect g x z.
-Proof.
-clear Hg.
-apply/idP/idP => [/connectP | /orP [] /connectP [] xs' /shortenP [xs]].
-- by case => xs Hxs Hz; subst z;
-     elim: xs x Hxs => /= [x | x' xs IH x /andP []];
-     rewrite ?(connect0, orbT) // ffunE; case: (altP (x =P y)) => [-> |];
-     rewrite ?connect0 // => H /eqP H0 /IH /orP [] H1; apply/orP;
-     [left | right]; apply connect_succL; rewrite /succ H0.
-- rewrite -/(path _) => Hxs Hxs' _ -> {y xs'}.
-  apply connect_trans with (last x xs);
-    last by apply connect_succL; rewrite succ_subst eqxx connect0.
-  elim/path_ind: x xs / Hxs Hxs'; first by move => *; apply connect0.
-  move => x xs _ _ IH /andP [H] /IH {IH} /=; apply connect_trans.
-  by apply connect_succL; rewrite succ_subst; case: eqP H;
-     [ move => {1}->; rewrite mem_last | move => *; apply connect0 ].
-- rewrite -/(path _) => Hxs Hxs' _ -> {z xs'}.
-  elim/path_ind: x xs / Hxs Hxs'; first by move => *; apply connect0.
-  move => x xs H _ IH /andP [H0] /IH {IH} /= H1.
-  by apply connect_succL; rewrite succ_subst;
-    case: eqP => *; [ apply connect0 | apply H1 ].
-Qed.
-
 Lemma acycle_compress x : acycle (compress x).
 Proof. by move => y; apply wacycle_compress. Qed.
 
@@ -546,13 +467,11 @@ End dynamic.
 (* Monadic definition of union-find and its properties *)
 Section monadic.
 
-Variable (cmp : R -> R -> bool).
-
 Section find.
 
 Variable (g : G) (Hg : acycle g).
 
-Fixpoint mfind_rec n x : AState [:: (T, (T + R)%type)] (T * R) :=
+Fixpoint mfind_rec n x : AState [:: (T, T + R)%type] (T * R) :=
   if n is n'.+1
   then x' <- astate_get x;
        match x' with
@@ -564,14 +483,14 @@ Fixpoint mfind_rec n x : AState [:: (T, (T + R)%type)] (T * R) :=
        end
   else astate_ret (x, Ridx).
 
-Definition mfind := mfind_rec #|T|.
+Definition mfind := mfind_rec $|T|.
 
 Lemma run_mfind_rec n x xs :
   let x' := last x xs in
   path g x xs -> size xs < n -> repr g x' ->
-  run_AState (mfind_rec n x) g =
-  (x', classval g x',
-   [ffun z => if (z \in x :: xs) && (z != x') then inl x' else g z]).
+  run_AState (mfind_rec n x) (tt, g) =
+  (tt, [ffun z => if (z \in x :: xs) && (z != x') then inl x' else g z],
+   (x', classval g x')).
 Proof.
 move => /= H /subnK <-; move: {n} (n - _) => n; rewrite addnC.
 elim/path_ind: x xs / H (path_uniq (Hg _) H) => [x /= _ H | x xs];
@@ -584,13 +503,15 @@ move/eqP: H6 => H6; rewrite !inE; do !case: eqP => //=; congruence.
 Qed.
 
 Lemma run_mfind x :
-  run_AState (mfind x) g = (find g x, classval g (find g x), compress g x).
+  run_AState (mfind x) (tt, g) =
+  (tt, compress g x, (find g x, classval g (find g x))).
 Proof.
 case/connectP: (connect_find g x) => xs Hxs H.
 have Hrepr: repr g (last x xs) by rewrite -H; apply Hg.
-rewrite H /mfind (@run_mfind_rec #|T| x xs) // ?(path_size (Hg _) Hxs) //.
-congr (_, _, _); apply/ffunP => y; rewrite !ffunE H;
-  congr (if (_ \in _) && _ then _ else _).
+rewrite H /mfind -cardT' (@run_mfind_rec #|T| x xs) //
+        ?(path_size (Hg _) Hxs) //.
+congr (_, _, _); apply/ffunP => y; rewrite !ffunE H /connect fconnect_orbit.
+congr (if (_ \in _) && _ then _ else _).
 rewrite /orbit /order -/(connect _) -(eq_card (full_path_connect Hxs _)) //.
 by move/card_uniqP: (path_uniq (Hg _) Hxs) {y Hrepr} => ->;
    congr cons; elim/path_ind: x xs / Hxs {H} => //= x xs _ _ <-.
@@ -611,7 +532,8 @@ Definition union x y :=
     then ffun_subst y' (inr v) (ffun_subst x' (inl y') g')
     else ffun_subst x' (inr v) (ffun_subst y' (inl x') g').
 
-Definition munion x y : AState [:: (T, (T + R)%type)] unit :=
+Definition munion x y : AState [:: (T, T + R)%type] unit :=
+  Eval simpl in
   x' <- mfind x;
   y' <- mfind y;
   if x'.1 == y'.1 then astate_ret tt else
@@ -621,7 +543,7 @@ Definition munion x y : AState [:: (T, (T + R)%type)] unit :=
     else astate_put y'.1 (inl x'.1);;
          astate_put x'.1 (inr (Rop x'.2 y'.2)).
 
-Lemma run_munion x y : run_AState (munion x y) g = (tt, union x y).
+Lemma run_munion x y : run_AState (munion x y) (tt, g) = (tt, union x y, tt).
 Proof.
 rewrite /union /findeq /= !run_mfind //=; last by apply acycle_compress.
 by rewrite find_compress // /(classval (compress _ _)) compress_repr;
@@ -629,9 +551,8 @@ by rewrite find_compress // /(classval (compress _ _)) compress_repr;
 Qed.
 
 Lemma union_findeq x y a b :
-  findeq (union x y) a b =
-  [|| findeq g a b,
-      findeq g a x && findeq g b y | findeq g a y && findeq g b x].
+ findeq (union x y) a b =
+  [||findeq g a b, findeq g a x && findeq g b y | findeq g a y && findeq g b x].
 Proof.
 rewrite /union /findeq; case: ifP => [| /negbT H];
   first by rewrite !find_compress ?wacycle_compress // => /eqP ->;
@@ -645,21 +566,49 @@ have Hxy: ((~~ connect g' (find g x) (find g y)) *
   rewrite !(wacycle_compress, find_compress, findI) // => ->.
 case: ifP => _;
   rewrite !find_substR ?Hg2 ?find_substL
-          ?(wacycle_subst, (fun z => esym (Hg2 z)), Hg1, Hxy, if_same) // !Hg2
-          !connect_substL -!findeq_connect // /findeq;
-  do !case: (find _ _ =P find _ _) => //=; try congruence.
+          ?(wacycle_subst, (fun z => esym (Hg2 z)), Hg1, Hxy, if_same) //
+          !Hg2 !connect_substL -!findeq_connect // /findeq;
+  do !case: (find _ _ =P find _ _) => //=; congruence.
 Qed.
 
 End union.
+
+(*
+Inductive ufcmd A := Find of A | Union of A & A.
+
+Fixpoint uftest_rec (cs : seq (ufcmd T)) (r : seq T) :
+    AState [:: (T, T + R)%type] (seq T) :=
+  match cs with
+    | [::] => astate_ret r
+    | Find x :: cs' => x' <- mfind x; uftest_rec cs' (x'.1 :: r)
+    | Union x y :: cs' => munion x y;; uftest_rec cs' r
+  end.
+
+Definition uftest (cs : seq (ufcmd T)) (f : {ffun T -> T + R}) :
+  {ffun T -> T + R} * seq T :=
+  let: (_, f', r) := run_AState (uftest_rec cs [::]) (tt, f) in (f', r).
+*)
 
 End monadic.
 
 End union_find.
 
-Section weighted_union.
+(******************************************************************************)
+(* Weighted union-find                                                        *)
+(******************************************************************************)
 
+Module WUF.
 
+Definition R := [eqType of nat].
+Definition Ridx := 0.
+Definition Rop := addn_comoid.
+Definition cmp := leq.
 
-End weighted_union.
+Definition mfind := mfind Ridx.
+Definition munion := munion Rop cmp.
 
-End union_find.
+End WUF.
+
+Require Import extraction_ocaml.
+
+Extraction "../../ocaml/wuf.ml" runt_AState runt_AState_ ordinal_finType WUF.

@@ -4,6 +4,8 @@ Require Import presburger.
 
 Extraction Language Ocaml.
 
+Cd "../../ocaml/".
+
 (* bool *)
 
 Extract Inductive bool => "bool" ["true" "false"].
@@ -140,7 +142,7 @@ Extract Constant FinTuple.fin_decode =>
 Extract Constant FunFinfun.fun_of_fin =>
   "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
 
-Extraction "../ocaml/presburger_after.ml"
+Extraction "presburger_after.ml"
            f_divisible dfa_prune
            presburger_dec presburger_st_dec presburger_sat presburger_valid.
 
@@ -154,4 +156,4 @@ Definition finfun_app_test (n : nat) :=
   let f := [ffun i : 'I_n => i] in
   \sum_i f i.
 
-Extraction "../ocaml/matrix_after.ml" matrix_mult_test finfun_app_test.
+Extraction "matrix_after.ml" matrix_mult_test finfun_app_test.

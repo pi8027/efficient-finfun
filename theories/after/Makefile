@@ -1,6 +1,6 @@
 include ./.deps
 
-COQLIBS=-R . vass ${COQLIBS}
+COQLIBS=-R . benchmark ${COQLIBS}
 VOFILES=$(VFILES:.v=.vo)
 GLOBFILES=$(VFILES:.v=.glob)
 

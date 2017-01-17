@@ -1,25 +1,39 @@
 #!/bin/zsh
 
-COQBIN=/usr/local/coq8.5beta3/bin
-COQLIB_LIST=("-R . \"\" -R ~/src/coq/regular/ regular -R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp" \
-             "-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp")
+envset(){
+case $1 in
+  theories/before)
+  COQBIN=/usr/local/coq8.5beta3/bin
+  COQLIB="-R . \"\" -R ~/src/coq/regular/ regular -R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp"
+  vfiles=(presburger.v extraction.v)
+  ;;
+  theories/after)
+  COQBIN=/usr/local/coq8.5beta3/bin
+  COQLIB="-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp"
+  vfiles=(presburger.v extraction.v)
+  ;;
+  theories/marray)
+  COQBIN=/usr/local/coq8.5beta3/bin
+  COQLIB="-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp"
+  vfiles=(core.v extraction_ocaml.v union_find.v)
+  ;;
+esac
+}
 
-pushd benchmark
+export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
 
-foreach dir (before after)
+puterr(){
+  echo $1 >&2
+  error=1
+}
+
+#### Coq
+
+foreach dir (theories/before theories/after theories/marray)
 pushd $dir
 
-  COQLIB=$COQLIB_LIST[1]
-  shift COQLIB_LIST
-
-  export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
-  vfiles=(presburger.v extraction.v)
+  envset $dir
   error=
-
-  puterr(){
-    echo $1 >&2
-    error=1
-  }
 
   for f in $vfiles; do
     tail -c 1 $f | grep -q . && puterr "$f: no newline at end of file"
@@ -31,8 +45,10 @@ pushd $dir
 
   make -j ${JOBS:-4} VFILES="$vfiles" PATH="$COQBIN:$PATH" COQLIBS="$COQLIB"
 
-popd # before, after
+popd # theories/*
 end
+
+#### OCaml
 
 pushd ocaml
 
@@ -45,5 +61,6 @@ pushd ocaml
   ocamlbuild -build-dir _matrix matrix_main.native
   #ocamlbuild -build-dir _matrix -ocamlc ocamlcp matrix_main.byte
 
+  ocamlbuild -build-dir _wuf wuf_main.native
+
 popd # ocaml
-popd # benchmark

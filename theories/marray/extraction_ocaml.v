@@ -1,8 +1,15 @@
-Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect all_algebra.
-Require Import presburger.
+Require Import core.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
 
 Extraction Language Ocaml.
+
+(* unit *)
+
+Extract Inductive unit => "unit" [" () "].
 
 (* bool *)
 
@@ -103,22 +110,71 @@ Extract Inductive
 
 Extract Constant tnth => "(fun _ t i -> t.(i))".
 
+(*
 Extract Constant map_tuple => "(fun _ f t -> Array.map f t)".
 
 Extract Constant ord_tuple => "(fun n -> Array.init n (fun n' -> n'))".
+*)
 
-Extraction "../ocaml/presburger_before.ml"
-           f_divisible dfa_prune
-           presburger_dec presburger_st_dec presburger_sat presburger_valid.
+Extract Constant codom_tuple =>
+  "(fun t f ->
+     Array.init
+     t.Finite.mixin.Finite.mixin_card
+     (fun i -> f (EncDecDef.fin_decode t i)))".
 
-(* matrix *)
+Extract Constant EncDecDef.fin_encode =>
+  "(fun t x -> (Finite.coq_class t).Finite.mixin.Finite.mixin_encode x)".
 
-Definition matrix_mult_test (n : nat) :=
-  let mx := (\matrix_(i < n, j < n) (i%:Z + j%:Z))%R in
-  (mx *m mx)%R.
+Extract Constant EncDecDef.fin_decode =>
+  "(fun t i -> (Finite.coq_class t).Finite.mixin.Finite.mixin_decode i)".
 
-Definition finfun_app_test (n : nat) :=
-  let f := [ffun i : 'I_n => i] in
-  \sum_i f i.
+Extract Constant FinTuple.fin_encode =>
+  "(fun n t x ->
+    let rec loop i acc =
+      if i = 0
+        then acc
+        else loop (i - 1) (acc * t.Finite.mixin.Finite.mixin_card +
+                           EncDecDef.fin_encode t x.(i))
+    in loop n 0)".
 
-Extraction "../ocaml/matrix_before.ml" matrix_mult_test finfun_app_test.
+Extract Constant FinTuple.fin_decode =>
+  "(fun n t i ->
+    Array.init n
+    (fun j -> EncDecDef.fin_decode t
+       ((i / expn t.Finite.mixin.Finite.mixin_card j)
+           mod t.Finite.mixin.Finite.mixin_card)))".
+
+Extract Constant FunFinfun.fun_of_fin =>
+  "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
+
+(* array state monad *)
+
+Extract Inductive AState => "runt_AState_"
+  [" (fun p s -> let (_, a) = p in a)"
+   " (fun p s -> let (_, f, g) = p in let r = f s in g r s)"
+   " (fun p s -> let (_, _, f) = p in f (Obj.magic fst s))"
+   " (fun p s -> let (ix, _, i) = p in
+         (Obj.magic snd s).(EncDecDef.fin_encode ix i))"
+   " (fun p s -> let (ix, _, i, x) = p in
+         (Obj.magic snd s).(EncDecDef.fin_encode ix i) <- x)"] "".
+
+Extract Inductive AState => "runt_AState_"
+  [" ((* astate_ret  *) fun p s -> let (_, a) = p in a)"
+   " ((* astate_bind *) fun p s -> let (_, f, g) = p in
+                        let r = f s in g r s)"
+   " ((* astate_lift *) fun p s -> let (_, _, f) = p in f (Obj.magic fst s))"
+   " ((* astate_get  *) fun p s -> let (ix, _, i) = p in
+                          (Obj.magic snd s).(EncDecDef.fin_encode ix i))"
+   " ((* astate_put  *) fun p s -> let (ix, _, i, x) = p in
+                          (Obj.magic snd s).(EncDecDef.fin_encode ix i) <- x)"]
+  "".
+
+Extract Constant run_AState =>
+  "(fun sign f s ->
+    let rec copy sign =
+      match sign with
+        | [] -> Obj.magic ()
+        | _ :: sign' -> let (s', a) = Obj.magic s in
+          Obj.magic (copy sign' s', Array.copy a) in
+    let s' = copy sign s in
+    let r = Obj.magic f sign s' in (s', r))".
