@@ -1,1 +1,2 @@
--R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp
+-R . "" -I /home/i/wrk/math-comp/mathcomp -R /home/i/wrk/math-comp/mathcomp mathcomp
+core.v extraction_ocaml.v union_find.v

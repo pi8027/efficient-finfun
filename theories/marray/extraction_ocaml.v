@@ -128,36 +128,19 @@ Extract Constant EncDecDef.fin_encode =>
 Extract Constant EncDecDef.fin_decode =>
   "(fun t i -> (Finite.coq_class t).Finite.mixin.Finite.mixin_decode i)".
 
-Extract Constant FinTuple.fin_encode =>
-  "(fun n t x ->
-    let rec loop i acc =
-      if i = 0
-        then acc
-        else loop (i - 1) (acc * t.Finite.mixin.Finite.mixin_card +
-                           EncDecDef.fin_encode t x.(i))
-    in loop n 0)".
-
-Extract Constant FinTuple.fin_decode =>
-  "(fun n t i ->
-    Array.init n
-    (fun j -> EncDecDef.fin_decode t
-       ((i / expn t.Finite.mixin.Finite.mixin_card j)
-           mod t.Finite.mixin.Finite.mixin_card)))".
-
 Extract Constant FunFinfun.fun_of_fin =>
   "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
 
 (* array state monad *)
 
 Extract Inductive AState => "runt_AState_"
-  [" (fun p s -> let (_, a) = p in a)"
-   " (fun p s -> let (_, f, g) = p in let r = f s in g r s)"
-   " (fun p s -> let (_, _, f) = p in f (Obj.magic fst s))"
-   " (fun p s -> let (ix, _, i) = p in
-         (Obj.magic snd s).(EncDecDef.fin_encode ix i))"
-   " (fun p s -> let (ix, _, i, x) = p in
-         (Obj.magic snd s).(EncDecDef.fin_encode ix i) <- x)"] "".
+  [" (function (_, a) -> fun s -> a)"
+   " (function (_, f, g) -> fun s -> let r = f s in g r s)"
+   " (function (_, _, f) -> fun s -> f (Obj.magic fst s))"
+   " (function (ix, _, i) -> fun s -> (Obj.magic snd s).(i))"
+   " (function (ix, _, i, x) -> fun s -> (Obj.magic snd s).(i) <- x)"] "".
 
+(*
 Extract Inductive AState => "runt_AState_"
   [" ((* astate_ret  *) fun p s -> let (_, a) = p in a)"
    " ((* astate_bind *) fun p s -> let (_, f, g) = p in
@@ -165,9 +148,10 @@ Extract Inductive AState => "runt_AState_"
    " ((* astate_lift *) fun p s -> let (_, _, f) = p in f (Obj.magic fst s))"
    " ((* astate_get  *) fun p s -> let (ix, _, i) = p in
                           (Obj.magic snd s).(EncDecDef.fin_encode ix i))"
-   " ((* astate_put  *) fun p s -> let (ix, _, i, x) = p in
+   " ((* astate_set  *) fun p s -> let (ix, _, i, x) = p in
                           (Obj.magic snd s).(EncDecDef.fin_encode ix i) <- x)"]
   "".
+*)
 
 Extract Constant run_AState =>
   "(fun sign f s ->

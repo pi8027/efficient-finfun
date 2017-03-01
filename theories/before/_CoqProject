@@ -1,2 +1,2 @@
--R ~/src/coq/regular/ regular
--R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp
+-R . "" -I /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp -R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp -R ~/src/coq/regular/ regular
+presburger.v extraction.v

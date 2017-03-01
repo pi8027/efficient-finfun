@@ -1,4 +1,3 @@
-Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect all_algebra.
 Require Import presburger.
 
@@ -109,10 +108,6 @@ Extract Constant map_tuple => "(fun _ f t -> Array.map f t)".
 
 Extract Constant ord_tuple => "(fun n -> Array.init n (fun n' -> n'))".
 
-Extraction "presburger_before.ml"
-           f_divisible dfa_prune
-           presburger_dec presburger_st_dec presburger_sat presburger_valid.
-
 (* matrix *)
 
 Definition matrix_mult_test (n : nat) :=
@@ -122,5 +117,9 @@ Definition matrix_mult_test (n : nat) :=
 Definition finfun_app_test (n : nat) :=
   let f := [ffun i : 'I_n => i] in
   \sum_i f i.
+
+Extraction "presburger_before.ml"
+           f_divisible dfa_prune
+           presburger_dec presburger_st_dec presburger_sat presburger_valid.
 
 Extraction "matrix_before.ml" matrix_mult_test finfun_app_test.

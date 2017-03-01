@@ -2,21 +2,25 @@
 
 envset(){
 case $1 in
-  theories/before)
+theories/before)
   COQBIN=/usr/local/coq8.5beta3/bin
-  COQLIB="-R . \"\" -R ~/src/coq/regular/ regular -R /usr/local/coq8.5beta3/mathcomp-1.6/mathcomp mathcomp"
+  MATHCOMP=/usr/local/coq8.5beta3/mathcomp-1.6/mathcomp
+  COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp -R ~/src/coq/regular/ regular"
   vfiles=(presburger.v extraction.v)
-  ;;
-  theories/after)
+;;
+theories/after)
   COQBIN=/usr/local/coq8.5beta3/bin
-  COQLIB="-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp"
+  MATHCOMP=/usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp
+  COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp -R ~/src/coq/mod-regular/ regular"
   vfiles=(presburger.v extraction.v)
-  ;;
-  theories/marray)
-  COQBIN=/usr/local/coq8.5beta3/bin
-  COQLIB="-R . \"\" -R ~/src/coq/mod-regular/ regular -R /usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp mathcomp"
+;;
+theories/marray)
+  COQBIN=/usr/local/coq8.6/bin
+  MATHCOMP=~/wrk/math-comp/mathcomp
+  #/usr/local/coq8.6/mod-mathcomp-1.6.1/mathcomp
+  COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp"
   vfiles=(core.v extraction_ocaml.v union_find.v)
-  ;;
+;;
 esac
 }
 
@@ -43,6 +47,7 @@ pushd $dir
 
   [[ -n $error ]] && exit 1
 
+  (echo $COQLIB; echo $vfiles) > _CoqProject
   make -j ${JOBS:-4} VFILES="$vfiles" PATH="$COQBIN:$PATH" COQLIBS="$COQLIB"
 
 popd # theories/*

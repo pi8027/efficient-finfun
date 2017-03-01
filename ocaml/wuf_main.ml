@@ -1,14 +1,49 @@
 type ufarray = (int, int) Wuf.sum array;;
 
-let find (a : ufarray) x =
+let find_compress (a : ufarray) x : int * int =
   let rec f x =
     match a.(x) with
       | Wuf.Inl x' -> let r = f x' in a.(x) <- Wuf.Inl (fst r) ; r
-      | Wuf.Inr w -> (x, w)
+      | Wuf.Inr r -> (x, r)
   in f x
 ;;
 
-let union (a : ufarray) x y : unit =
+let find_split (a : ufarray) x' : int * int =
+  match a.(x') with
+    | Wuf.Inr r -> (x', r)
+    | Wuf.Inl y' ->
+      let x = ref x' in
+      let y = ref y' in
+      let rec f (_ : unit) =
+        match a.(!y) with
+          | Wuf.Inr r -> (!y, r)
+          | Wuf.Inl z -> a.(!x) <- Wuf.Inl z; x := !y; y := z; f ()
+      in f ()
+;;
+
+let find_halve (a : ufarray) x' : int * int =
+  let x = ref x' in
+  let rec f (_ : unit) =
+    match a.(!x) with
+      | Wuf.Inr r -> (!x, r)
+      | Wuf.Inl y ->
+        begin match a.(y) with
+          | Wuf.Inr r -> (y, r)
+          | Wuf.Inl z -> a.(!x) <- Wuf.Inl z; x := z; f ()
+        end
+  in f ()
+;;
+
+let union_rank (find : ufarray -> int -> int * int) (a : ufarray) x y : unit =
+  let (x', wx) = find a x in
+  let (y', wy) = find a y in
+  if x' = y' then ()
+  else if wx < wy then a.(x') <- Wuf.Inl y'
+  else if wy < wx then a.(y') <- Wuf.Inl x'
+  else (a.(y') <- Wuf.Inl x'; a.(x') <- Wuf.Inr (wx + 1))
+;;
+
+let union_weight (find : ufarray -> int -> int * int) (a : ufarray) x y : unit =
   let (x', wx) = find a x in
   let (y', wy) = find a y in
   if x' = y' then () else
@@ -17,12 +52,12 @@ let union (a : ufarray) x y : unit =
   else (a.(y') <- Wuf.Inl x'; a.(x') <- Wuf.Inr (wx + wy))
 ;;
 
-
-let uftest1 (a : ufarray) elems n m =
+let uftest1
+  (union : (ufarray -> int -> int * int) -> ufarray -> int -> int -> unit)
+  (find : ufarray -> int -> int * int) (a : ufarray) elems n m =
   let pick () = Random.int elems in
-  let rs : (int * int) list ref = ref [] in
   for i = 1 to n do
-    let x = pick () in let y = pick () in union a x y
+    let x = pick () in let y = pick () in union find a x y
   done;
   for j = 1 to m do
     let x = pick () in let (r, _) = find a x in ()
@@ -33,7 +68,6 @@ let uftest2 (a : ufarray) elems n m =
   let indices_type = Wuf.ordinal_finType elems in
   let pick () = Obj.magic (Random.int elems) in
   let a' = Obj.magic ((), a) in
-  let rs : (int * int) list ref = ref [] in
   for i = 1 to n do
     let x = pick () in let y = pick () in
     Wuf.WUF.munion indices_type x y a'
@@ -88,25 +122,33 @@ let rec dump xs ys =
 
 Random.self_init ();;
 
-let i_max = 200 in
-let j_max = 5 in
+let i_max = 100 in
+let j_max = 2 in
 let seeds = Array.init (i_max * j_max) (fun _ -> Random.bits ()) in
 for i_ = 0 to i_max - 1 do
-  let i = (i_ + 1) * 5000 in
+  let i = (i_ + 1) * 50000 in
   for j = 0 to j_max - 1 do
-    Random.init (seeds.(i_ * j_max + j));
-    let (time1, res1) =
-      Utils.with_timer_median 3 (fun _ ->
-        uftest1 (Array.init i (fun _ -> Wuf.Inr 1)) i i i) in
-    Random.init (seeds.(i_ * j_max + j));
-    let (time2, res2) =
-      Utils.with_timer_median 3 (fun _ ->
-        uftest2 (Array.init i (fun _ -> Wuf.Inr 1)) i i i) in
+    let benchmark uftest =
+      Utils.with_timer_median 5 (fun _ ->
+        Random.init (seeds.(i_ * j_max + j));
+        uftest (Array.init i (fun _ -> Wuf.Inr 1)) i i i) in
+    let (time1, res1) = benchmark (uftest1 union_weight find_compress) in
+    let (time2, res2) = benchmark (uftest1 union_weight find_split) in
+    let (time3, res3) = benchmark (uftest1 union_weight find_halve) in
+    let (time4, res4) = benchmark (uftest1 union_rank find_compress) in
+    let (time5, res5) = benchmark (uftest1 union_rank find_split) in
+    let (time6, res6) = benchmark (uftest1 union_rank find_halve) in
+    let (time7, res7) = benchmark uftest2 in
     (* assert (res1 = res2); *)
     print_endline
       ("[" ^ string_of_int i ^ ", " ^ string_of_int j ^ "] " ^
-       "ocaml: " ^ Utils.string_of_float time1 ^ ", " ^
-       "coq: " ^ Utils.string_of_float time2 ^ ", " ^
-       "ratio: " ^ Utils.string_of_float (time2 /. time1))
+       "ocaml[wc]: " ^ Utils.string_of_float time1 ^ ", " ^
+       "ocaml[ws]: " ^ Utils.string_of_float time2 ^ ", " ^
+       "ocaml[wh]: " ^ Utils.string_of_float time3 ^ ", " ^
+       "ocaml[rc]: " ^ Utils.string_of_float time4 ^ ", " ^
+       "ocaml[rs]: " ^ Utils.string_of_float time5 ^ ", " ^
+       "ocaml[rh]: " ^ Utils.string_of_float time6 ^ ", " ^
+       "coq[wc]: " ^ Utils.string_of_float time7 ^ ", " ^
+       "ratio: " ^ Utils.string_of_float (time7 /. time1))
   done
 done

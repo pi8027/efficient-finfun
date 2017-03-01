@@ -1,4 +1,3 @@
-Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect all_algebra.
 Require Import automata.
 Import GRing.Theory Num.Theory.

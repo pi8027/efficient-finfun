@@ -1,4 +1,3 @@
-Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect all_algebra.
 Require Import presburger.
 
@@ -123,28 +122,8 @@ Extract Constant EncDecDef.fin_encode =>
 Extract Constant EncDecDef.fin_decode =>
   "(fun t i -> (Finite.coq_class t).Finite.mixin.Finite.mixin_decode i)".
 
-Extract Constant FinTuple.fin_encode =>
-  "(fun n t x ->
-    let rec loop i acc =
-      if i = 0
-        then acc
-        else loop (i - 1) (acc * t.Finite.mixin.Finite.mixin_card +
-                           EncDecDef.fin_encode t x.(i))
-    in loop n 0)".
-
-Extract Constant FinTuple.fin_decode =>
-  "(fun n t i ->
-    Array.init n
-    (fun j -> EncDecDef.fin_decode t
-       ((i / expn t.Finite.mixin.Finite.mixin_card j)
-           mod t.Finite.mixin.Finite.mixin_card)))".
-
 Extract Constant FunFinfun.fun_of_fin =>
   "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
-
-Extraction "presburger_after.ml"
-           f_divisible dfa_prune
-           presburger_dec presburger_st_dec presburger_sat presburger_valid.
 
 (* matrix *)
 
@@ -155,5 +134,9 @@ Definition matrix_mult_test (n : nat) :=
 Definition finfun_app_test (n : nat) :=
   let f := [ffun i : 'I_n => i] in
   \sum_i f i.
+
+Extraction "presburger_after.ml"
+           f_divisible dfa_prune
+           presburger_dec presburger_st_dec presburger_sat presburger_valid.
 
 Extraction "matrix_after.ml" matrix_mult_test finfun_app_test.
