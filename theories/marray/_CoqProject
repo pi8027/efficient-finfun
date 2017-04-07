@@ -1,2 +1,0 @@
--R . "" -I /home/i/wrk/math-comp/mathcomp -R /home/i/wrk/math-comp/mathcomp mathcomp
-core.v extraction_ocaml.v union_find.v

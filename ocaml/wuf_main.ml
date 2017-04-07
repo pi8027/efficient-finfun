@@ -123,32 +123,37 @@ let rec dump xs ys =
 Random.self_init ();;
 
 let i_max = 100 in
-let j_max = 2 in
+let j_max = 1 in
 let seeds = Array.init (i_max * j_max) (fun _ -> Random.bits ()) in
 for i_ = 0 to i_max - 1 do
-  let i = (i_ + 1) * 50000 in
+  let i = (i_ + 1) * 100000 in
   for j = 0 to j_max - 1 do
     let benchmark uftest =
       Utils.with_timer_median 5 (fun _ ->
         Random.init (seeds.(i_ * j_max + j));
         uftest (Array.init i (fun _ -> Wuf.Inr 1)) i i i) in
     let (time1, res1) = benchmark (uftest1 union_weight find_compress) in
+    (*
     let (time2, res2) = benchmark (uftest1 union_weight find_split) in
     let (time3, res3) = benchmark (uftest1 union_weight find_halve) in
     let (time4, res4) = benchmark (uftest1 union_rank find_compress) in
     let (time5, res5) = benchmark (uftest1 union_rank find_split) in
     let (time6, res6) = benchmark (uftest1 union_rank find_halve) in
+    *)
     let (time7, res7) = benchmark uftest2 in
-    (* assert (res1 = res2); *)
+    (* assert (res1 = res7); *)
     print_endline
       ("[" ^ string_of_int i ^ ", " ^ string_of_int j ^ "] " ^
        "ocaml[wc]: " ^ Utils.string_of_float time1 ^ ", " ^
+       (*
        "ocaml[ws]: " ^ Utils.string_of_float time2 ^ ", " ^
        "ocaml[wh]: " ^ Utils.string_of_float time3 ^ ", " ^
        "ocaml[rc]: " ^ Utils.string_of_float time4 ^ ", " ^
        "ocaml[rs]: " ^ Utils.string_of_float time5 ^ ", " ^
        "ocaml[rh]: " ^ Utils.string_of_float time6 ^ ", " ^
+       *)
        "coq[wc]: " ^ Utils.string_of_float time7 ^ ", " ^
        "ratio: " ^ Utils.string_of_float (time7 /. time1))
   done
 done
+;;

@@ -1,9 +1,12 @@
 From mathcomp Require Import all_ssreflect all_algebra.
 Require Import presburger.
 
+Unset Extraction SafeImplicits.
 Extraction Language Ocaml.
 
-Cd "../../ocaml/".
+(* unit *)
+
+Extract Inductive unit => "unit" [" () "].
 
 (* bool *)
 
@@ -62,7 +65,8 @@ Extract Inlined Constant divn => "(fun n m -> if m = 0 then 0 else n / m)".
 
 Extract Inlined Constant modn => "(fun n m -> if m = 0 then n else n mod m)".
 
-Extract Inlined Constant nat_of_ord => "(fun _ i -> i)".
+Extraction Implicit nat_of_ord [n].
+Extract Inlined Constant nat_of_ord => "(* nat_of_ord *)".
 
 (* int *)
 
@@ -102,11 +106,21 @@ Extract Inductive
                 ["Array.of_list"]
                 "(fun f t -> f (Array.to_list t))".
 
-Extract Constant tnth => "(fun _ t i -> t.(i))".
+Extraction Implicit tnth [n].
+Extract Constant tnth => "(fun t i -> t.(i))".
 
 Extract Constant map_tuple => "(fun _ f t -> Array.map f t)".
 
 Extract Constant ord_tuple => "(fun n -> Array.init n (fun n' -> n'))".
+
+(* avoiding extractor bugs: type mismatch, assertion failure, etc. *)
+
+Extract Constant SetDef.pred_of_set =>
+  "(fun t a -> Obj.magic FunFinfun.fun_of_fin t ((set_subType t).val0 (Obj.magic a)))".
+
+Extract Constant Finite.base2 =>
+  "(fun c -> { Countable.base = c.base;
+               Countable.mixin = (Obj.magic mixin_base __ c.mixin) })".
 
 (* matrix *)
 
@@ -118,8 +132,12 @@ Definition finfun_app_test (n : nat) :=
   let f := [ffun i : 'I_n => i] in
   \sum_i f i.
 
+Cd "../../ocaml/".
+
 Extraction "presburger_before.ml"
            f_divisible dfa_prune
            presburger_dec presburger_st_dec presburger_sat presburger_valid.
 
 Extraction "matrix_before.ml" matrix_mult_test finfun_app_test.
+
+Cd "../theories/before/".

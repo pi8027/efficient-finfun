@@ -19,10 +19,12 @@ Structure type : Type := Pack {
 
 End Monad.
 
+(*
 Notation "x <- y ; f" :=
   (Monad.bind y (fun x => f)) (at level 65, right associativity).
 Notation "y ;; f" :=
   (Monad.bind y (fun _ => f)) (at level 65, right associativity).
+*)
 
 Notation monadType := Monad.type.
 Notation MonadType := Monad.Pack.
@@ -51,7 +53,8 @@ Inductive AState : seq (finType * Type) -> Type -> Type :=
   | astate_ret : forall {sig A}, A -> AState sig A
   | astate_bind :
       forall {sig A B}, AState sig A -> (A -> AState sig B) -> AState sig B
-  | astate_lift : forall {Ix T sig A}, AState sig A -> AState ((Ix, T) :: sig) A
+  | astate_lift :
+      forall {Ix T sig A}, AState sig A -> AState ((Ix, T) :: sig) A
   | astate_GET :
       forall {Ix : finType} {T sig}, 'I_#|Ix| -> AState ((Ix, T) :: sig) T
   | astate_SET :
@@ -73,6 +76,14 @@ Definition run_AState : forall sig A, AState sig A -> runt_AState sig A :=
     (fun _ _ _ i s => (s, s.2 (fin_decode i)))
     (fun _ _ _ i x '(s, a) => (s, ffun_set (fin_decode i) x a, tt)).
 
+(*
+Definition astate_ret {sig A} a := @astate_ret_ sig A a.
+Definition astate_bind {sig A B} := @astate_bind_ sig A B.
+Definition astate_lift {Ix T sig A} := @astate_lift_ Ix T sig A.
+Definition astate_GET {Ix T sig} := @astate_GET_ Ix T sig.
+Definition astate_SET {Ix T sig} := @astate_SET_ Ix T sig.
+*)
+
 Notation astate_get i := (astate_GET (fin_encode i)).
 Notation astate_set i x := (astate_SET (fin_encode i) x).
 
@@ -80,18 +91,26 @@ Canonical AState_monadType sig :=
   @MonadType (AState sig) (runt_AState sig)
              (@run_AState sig) (@astate_ret sig) (@astate_bind sig).
 
+Notation "x <- y ; f" :=
+  (astate_bind y (fun x => f)) (at level 65, right associativity).
+Notation "y ;; f" :=
+  (astate_bind y (fun _ => f)) (at level 65, right associativity).
+
 (* Monad laws and equational theory of the array state monad *)
 
 Module equational_theory.
 
 Implicit Types (T A B C : Type) (Ix : finType) (sig : seq (finType * Type)).
 
-Lemma left_id sig A B (a : A) (f : A -> AState sig B) :
-  Monad.run (a' <- Monad.ret _ a; f a') = Monad.run (f a).
-Proof. by rewrite /= /run_AState /=; elim: (f a). Qed.
+Notation "x =m y" :=
+  (@Monad.run (AState_monadType _) _ x =1 @Monad.run (AState_monadType _) _ y)
+  (at level 70, no associativity).
 
-Lemma right_id sig A (a : AState sig A) :
-  Monad.run (a' <- a; Monad.ret _ a') =1 Monad.run a.
+Lemma left_id sig A B (a : A) (f : A -> AState sig B) :
+  a' <- Monad.ret _ a; f a'  =m  f a.
+Proof. done. Qed.
+
+Lemma right_id sig A (a : AState sig A) : a' <- a; Monad.ret _ a'  =m  a.
 Proof.
 by case: a => //= {sig A} =>
   [sig A B a f s | Ix T sig A x [s a] | Ix T sig A x [s a]] //;
@@ -100,33 +119,31 @@ Qed.
 
 Lemma assoc
   sig A B C (a : AState sig A) (f : A -> AState sig B) (g : B -> AState sig C) :
-  Monad.run (a' <- a; b <- f a'; g b) =1 Monad.run (b <- (a' <- a; f a'); g b).
+  a' <- a; b <- f a'; g b  =m  b <- (a' <- a; f a'); g b.
 Proof. by move => s /=; case: (run_AState a s). Qed.
 
 Lemma lift_distr Ix T sig A B (a : AState sig A) (f : A -> AState sig B) :
-  Monad.run (a' <- @astate_lift Ix T _ _ a; astate_lift (f a')) =1
-  Monad.run (astate_lift (a' <- a; f a')).
+  astate_lift (a' <- a; f a') =m
+  a' <- @astate_lift Ix T _ _ a; astate_lift (f a').
 Proof. by move => /= [s s']; case: (run_AState a s). Qed.
 
 Lemma set_return_unit Ix T sig (i : 'I_#|Ix|) (x : T) :
-  Monad.run (astate_SET (sig := sig) i x) =1
-  Monad.run (astate_SET i x;; Monad.ret _ tt).
-Proof. by move => /= [s s']. Qed.
+  astate_SET (sig := sig) i x  =m  astate_SET i x;; Monad.ret _ tt.
+Proof. by case. Qed.
 
 Lemma get_lift Ix T sig A B (i : 'I_#|Ix|)
       (a : AState sig A) (f : A -> T -> AState ((Ix, T) :: sig) B) :
-  Monad.run (x <- astate_GET i; a' <- astate_lift a; f a' x) =1
-  Monad.run (a' <- astate_lift a; x <- astate_GET i; f a' x).
+  x <- astate_GET i; a' <- astate_lift a; f a' x =m
+  a' <- astate_lift a; x <- astate_GET i; f a' x.
 Proof. by move => /= [s s']; case: (run_AState a s). Qed.
 
 Lemma set_lift Ix T sig A (i : 'I_#|Ix|) (x : T) (a : AState sig A) :
-  Monad.run (astate_SET (sig := sig) i x;; astate_lift a) =1
-  Monad.run (a' <- astate_lift a; astate_SET i x;; Monad.ret _ a').
+  astate_SET (sig := sig) i x;; astate_lift a =m
+  a' <- astate_lift a; astate_SET i x;; Monad.ret _ a'.
 Proof. by move => /= [s s']; case: (run_AState a s). Qed.
 
 Lemma get_set_s Ix T sig (i : 'I_#|Ix|) :
-  Monad.run (x <- @astate_GET Ix T sig i; astate_SET i x) =1
-  Monad.run (astate_ret tt).
+  x <- @astate_GET Ix T sig i; astate_SET i x  =m  astate_ret tt.
 Proof.
 by move => /= [s s']; congr (_, _, _); apply/ffunP => j;
   rewrite ffunE; case: eqP => //= -> {j}.
@@ -134,33 +151,31 @@ Qed.
 
 Lemma get_get_s
       Ix T sig A (i : 'I_#|Ix|) (f : T -> T -> AState ((Ix, T) :: sig) A) :
-  Monad.run (x <- astate_GET i; y <- astate_GET i; f x y) =
-  Monad.run (x <- astate_GET i; f x x).
+  x <- astate_GET i; y <- astate_GET i; f x y  =m  x <- astate_GET i; f x x.
 Proof. done. Qed.
 
-Lemma set_set_s Ix T sig (i : 'I_#|Ix|) (x : T) :
-  Monad.run (astate_SET (sig := sig) i x;; astate_SET i x) =1
-  Monad.run (astate_SET i x).
+Lemma set_set_s Ix T sig (i : 'I_#|Ix|) (x y : T) :
+  astate_SET (sig := sig) i x;; astate_SET i y  =m  astate_SET i y.
 Proof.
 by move => /= [s s']; congr (_, _, _);
    apply/ffunP => j; rewrite !ffunE; case: eqP.
 Qed.
 
 Lemma set_get_s Ix T sig (i : 'I_#|Ix|) (x : T) :
-  Monad.run (astate_SET (sig := sig) i x;; astate_GET i) =1
-  Monad.run (astate_SET i x;; Monad.ret _ x).
+  astate_SET (sig := sig) i x;; astate_GET i =m
+  astate_SET i x;; Monad.ret _ x.
 Proof. by move => /= [s s'] /=; congr (_, _, _); rewrite !ffunE eqxx. Qed.
 
 Lemma get_get_d
       Ix T sig A (i j : 'I_#|Ix|) (f : T -> T -> AState ((Ix, T) :: sig) A) :
-  Monad.run (x <- astate_GET (sig := sig) i; y <- astate_GET j; f x y) =
-  Monad.run (y <- astate_GET j; x <- astate_GET i; f x y).
+  x <- astate_GET (sig := sig) i; y <- astate_GET j; f x y =m
+  y <- astate_GET j; x <- astate_GET i; f x y.
 Proof. done. Qed.
 
 Lemma set_set_d Ix T sig (i j : 'I_#|Ix|) (x y : T) :
   i != j ->
-  Monad.run (astate_SET (sig := sig) i x;; astate_SET j y) =1
-  Monad.run (astate_SET j y;; astate_SET i x).
+  astate_SET (sig := sig) i x;; astate_SET j y =m
+  astate_SET j y;; astate_SET i x.
 Proof.
 move => /= /eqP H [s s']; congr (_, _, _); apply/ffunP => k; rewrite !ffunE;
   do !case: eqP; try congruence; rewrite -(fin_encodeK k) =>
@@ -169,14 +184,129 @@ Qed.
 
 Lemma set_get_d Ix T sig (i j : 'I_#|Ix|) (x : T) :
   i != j ->
-  Monad.run (astate_SET (sig := sig) i x;; astate_GET j) =1
-  Monad.run (y <- astate_GET j; astate_SET i x;; Monad.ret _ y).
+  astate_SET (sig := sig) i x;; astate_GET j =m
+  y <- astate_GET j; astate_SET i x;; Monad.ret _ y.
 Proof.
 by move => /= H [s s']; congr (_, _, _); rewrite /= !ffunE;
    rewrite (inj_eq (can_inj (@fin_decodeK _))) eq_sym (negbTE H).
 Qed.
 
 End equational_theory.
+
+(* Iteration *)
+
+Section Iteration_ordinal.
+
+Variable (n : nat) (sig : seq (finType * Type)) (A : Type)
+         (f : 'I_n -> A -> A) (g : 'I_n -> A -> AState sig A).
+
+Fixpoint iterate_revord i x : i <= n -> A :=
+  match i with
+    | 0 => fun _ => x
+    | i'.+1 => fun (H : i' < n) =>
+                 iterate_revord (i := i') (f (Ordinal H) x) (ltnW H)
+  end.
+
+Lemma iterate_revord_eq x :
+  iterate_revord x (leqnn n) = foldr f x (enum 'I_n).
+Proof.
+move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
+move: (rev _) (leqnn _) => /= xs;
+  move: {1 5 6}n => i Hi; elim: i Hi x xs => [| i IH] H x; first by case.
+rewrite -{1}addn1 iota_add add0n /= rev_cat //=; case => //= i' xs [] H0 H1.
+have <-: i' = Ordinal H by apply val_inj.
+by rewrite rev_cons -cats1 foldr_cat /= -(IH (ltnW H)).
+Qed.
+
+Fixpoint miterate_revord i x : i <= n -> AState sig A :=
+  match i with
+    | 0 => fun _ => astate_ret x
+    | i'.+1 =>
+      fun (H : i' < n) =>
+        astate_bind (g (Ordinal H) x) (fun y => miterate_revord y (ltnW H))
+  end.
+
+Lemma run_miterate_revord x (s : states_AState sig) :
+  run_AState (miterate_revord x (leqnn n)) s =
+  foldr (fun i '(s, x) => run_AState (g i x) s) (s, x) (enum 'I_n).
+Proof.
+move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
+move: (rev _) (leqnn _) => /= xs;
+  move: {1 5 6}n => i Hi; elim: i Hi x xs s => [| i IH] H x; first by case.
+rewrite -{1}addn1 iota_add add0n /= rev_cat //=; case => //= i' xs s [] H0 H1.
+have <-: i' = Ordinal H by apply val_inj.
+by rewrite rev_cons -cats1 foldr_cat /=;
+  case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).
+Qed.
+
+End Iteration_ordinal.
+
+Section Iteration_finType.
+
+Lemma rev_enum_ord n : rev (enum 'I_n) = [seq rev_ord i | i <- enum 'I_n].
+Proof.
+apply/(inj_map val_inj).
+move: (map_comp (fun x => n - x.+1) val (enum 'I_n)) (val_enum_ord n).
+rewrite -(map_comp val (@rev_ord _)) !/comp /= map_rev => -> ->.
+rewrite -{2}(subnn n); elim: {1 3 6 7}n (leqnn n) => // i IH H.
+by rewrite -{1}(addn1 i) iota_add add0n /=
+           rev_cat /= subnSK // -IH ?subKn // ltnW.
+Qed.
+
+Variable (T : finType) (sig : seq (finType * Type)) (A : Type)
+         (f : T -> A -> A) (g : T -> A -> AState sig A).
+
+Definition iterate_fin x : A :=
+  iterate_revord (fun i x => f (raw_fin_decode (rev_ord i)) x) x (leqnn $|T|).
+
+(*
+Lemma iterate_fin_eq x : iterate_fin x = foldl (fun x => f ^~ x) x (enum T).
+Proof.
+rewrite /iterate_fin iterate_revord_eq -foldl_rev rev_enum_ord enumT' ord_enumE.
+elim: (enum _) x => //= e es IH x. rewrite IH rev_ordK.
+Qed.
+*)
+
+Definition iterate_revfin x : A :=
+  iterate_revord (fun i x => f (raw_fin_decode i) x) x (leqnn $|T|).
+
+(*
+Lemma iterate_revfin_eq x : iterate_revfin x = foldr f x (enum T).
+Proof.
+rewrite /iterate_revfin iterate_revord_eq enumT' ord_enumE.
+by elim: (enum _) x => //= e es IH x; rewrite IH.
+Qed.
+*)
+
+Definition miterate_fin x : AState sig A :=
+  miterate_revord (fun i => g (raw_fin_decode (rev_ord i))) x (leqnn $|T|).
+
+(*
+Lemma run_miterate_fin (x : A) (s : states_AState sig) :
+  run_AState (miterate_fin x) s =
+  foldl (fun '(s, x) i => run_AState (g i x) s) (s, x) (enum T).
+Proof.
+rewrite /miterate_fin run_miterate_revord
+        -foldl_rev rev_enum_ord enumT' ord_enumE.
+by elim: (enum _) s x => //= e es IH s x;
+   rewrite rev_ordK; case: (run_AState _ _) => s' y; rewrite IH.
+Qed.
+*)
+
+Definition miterate_revfin x : AState sig A :=
+  miterate_revord (fun i => g (raw_fin_decode i)) x (leqnn $|T|).
+
+(*
+Lemma run_miterate_revfin (x : A) (s : states_AState sig) :
+  run_AState (miterate_revfin x) s =
+  foldr (fun i '(s, x) => run_AState (g i x) s) (s, x) (enum T).
+Proof.
+rewrite /miterate_revfin run_miterate_revord enumT' ord_enumE.
+by elim: (enum _) s x => //= e es IH s x; rewrite IH.
+Qed.
+*)
+
+End Iteration_finType.
 
 (* Examples *)
 
@@ -206,52 +336,11 @@ Transparent swap.
 
 End Examples.
 
-(* Iteration *)
-
-Section Iteration_ordinal.
-
-Variable (n : nat) (sig : seq (finType * Type)) (A : Type)
-         (f : 'I_n -> A -> AState sig A).
-
-Lemma iterate_ord_subproof i : i < n -> n - i.+1 < n.
-Proof. by move => H; rewrite subnSK // leq_subr. Qed.
-
-Fixpoint iterate_ord (i : nat) (x : A) : i <= n -> AState sig A :=
-  match i with
-    | 0 => fun _ => astate_ret x
-    | i'.+1 => fun (H : i' < n) =>
-                 y <- f (@Ordinal n (n - i'.+1) (iterate_ord_subproof H)) x;
-                 iterate_ord (i := i') y (ltnW H)
-  end.
-
-Lemma run_iterate_ord (x : A) (s : states_AState sig) :
-  run_AState (iterate_ord x (leqnn n)) s =
-  foldl (fun '(s, x) i => run_AState (f i x) s) (s, x) (enum 'I_n).
-Proof.
-move: (enum _) (leqnn _) (val_enum_ord n) => /= xs; rewrite -(subnn n).
-move: {1 6 7 8}n => i Hi;
-  elim: i Hi x xs s => [| i IH] H x [] //= i' xs s [] H0 H1.
-have <-: i' = Ordinal (iterate_ord_subproof H) by apply val_inj.
-by case: (run_AState (f i' x) s) => s' y; rewrite -(IH (ltnW H)) // H1 subnSK.
-Qed.
-
-End Iteration_ordinal.
-
-Section Iteration_finType.
-
-Variable (T : finType) (sig : seq (finType * Type)) (A : Type)
-         (f : T -> A -> AState sig A).
-
-Definition iterate (x : A) : AState sig A :=
-  iterate_ord (fun i => f (fin_decode i)) x (leqnn #|T|).
-
-Lemma run_iterate (x : A) (s : states_AState sig) :
-  run_AState (iterate x) s =
-  foldl (fun '(s, x) i => run_AState (f i x) s) (s, x) (enum T).
-Proof.
-rewrite /iterate run_iterate_ord enumT' ord_enumE.
-by elim: (enum _) s x => //= i ixs IH s x;
-   case: (run_AState _ _) => s' y; rewrite IH.
-Qed.
-
-End Iteration_finType.
+(*
+Print Finite.class_of.
+  Print Choice.class_of.
+    Print Equality.mixin_of.
+    Print Choice.mixin_of.
+  Print Finite.mixin_of.
+    Print Countable.mixin_of.
+*)
