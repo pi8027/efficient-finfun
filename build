@@ -3,25 +3,19 @@
 envset(){
 case $1 in
 theories/before)
-  #COQBIN=/usr/local/coq8.5beta3/bin
-  #MATHCOMP=/usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp
   COQBIN=/usr/local/coq8.6/bin
   MATHCOMP=/usr/local/coq8.6/math-comp-mathcomp-1.6.1/mathcomp
   COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp -R ~/src/coq/regular/ regular"
   vfiles=(presburger.v extraction.v)
 ;;
 theories/after)
-  #COQBIN=/usr/local/coq8.5beta3/bin
-  #MATHCOMP=/usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp
   COQBIN=/usr/local/coq8.6/bin
   MATHCOMP=/usr/local/coq8.6/mod-mathcomp-1.6.1/mathcomp
   COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp -R ~/src/coq/mod-regular/ regular"
   vfiles=(presburger.v extraction.v)
 ;;
 theories/marray)
-  #COQBIN=/usr/local/coq8.5beta3/bin
-  #MATHCOMP=/usr/local/coq8.5beta3/mod-mathcomp-1.6/mathcomp
-  COQBIN=/usr/local/coq8.6/bin
+  COQBIN=/usr/local/coq-lift-abs/bin
   MATHCOMP=~/wrk/math-comp/mathcomp
   COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp"
   vfiles=(core.v extraction_ocaml.v union_find.v floyd_warshall.v)
@@ -60,6 +54,8 @@ end
 
 #### OCaml
 
+eval `opam config env --switch=4.04.0+flambda`
+
 pushd ocaml
 
   echo 'module Presburger = Presburger_before;;' > def.ml
@@ -71,9 +67,19 @@ pushd ocaml
   ocamlbuild -build-dir _matrix matrix_main.native
   ocamlbuild -build-dir _matrix -ocamlc ocamlcp matrix_main.byte
 
-  ocamlbuild -build-dir _wuf -tag 'optimize(3)' -tag 'remove_unused_arguments' wuf_main.native
+  ocamlbuild -build-dir _wuf \
+    -tag 'optimize(3)' \
+    -tag 'remove_unused_arguments' \
+    -tag 'inline_max_depth(1)' \
+    -tag 'inlining_report' \
+    wuf_main.native
 
-  ocamlbuild -build-dir _floyd_warshall -tag 'optimize(3)' -tag 'remove_unused_arguments' floyd_warshall_main.native
-  ocamlbuild -build-dir _floyd_warshall -ocamlc ocamlcp floyd_warshall_main.byte
+  ocamlbuild -build-dir _floyd_warshall \
+    -tag 'optimize(3)' \
+    -tag 'remove_unused_arguments' \
+    -tag 'inline_max_depth(1)' \
+    -tag 'inlining_report' \
+    floyd_warshall_main.native
+  #ocamlbuild -build-dir _floyd_warshall -ocamlc ocamlcp floyd_warshall_main.byte
 
 popd # ocaml

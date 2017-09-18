@@ -598,4 +598,5 @@ End WUF.
 
 Require Import extraction_ocaml.
 
+Unset Extraction SafeImplicits.
 Extraction "../../ocaml/wuf.ml" runt_AState runt_AState_ ordinal_finType WUF.

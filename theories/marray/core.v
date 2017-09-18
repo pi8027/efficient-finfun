@@ -50,14 +50,14 @@ Lemma subst_id (Ix : finType) (T : Type) (f : {ffun Ix -> T}) i x :
 Proof. by move ->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
 
 Inductive AState : seq (finType * Type) -> Type -> Type :=
-  | astate_ret : forall {sig A}, A -> AState sig A
-  | astate_bind :
+  | astate_ret_ : forall {sig A}, A -> AState sig A
+  | astate_bind_ :
       forall {sig A B}, AState sig A -> (A -> AState sig B) -> AState sig B
-  | astate_lift :
+  | astate_lift_ :
       forall {Ix T sig A}, AState sig A -> AState ((Ix, T) :: sig) A
-  | astate_GET :
+  | astate_GET_ :
       forall {Ix : finType} {T sig}, 'I_#|Ix| -> AState ((Ix, T) :: sig) T
-  | astate_SET :
+  | astate_SET_ :
       forall {Ix : finType} {T sig},
         'I_#|Ix| -> T -> AState ((Ix, T) :: sig) unit.
 
@@ -76,13 +76,11 @@ Definition run_AState : forall sig A, AState sig A -> runt_AState sig A :=
     (fun _ _ _ i s => (s, s.2 (fin_decode i)))
     (fun _ _ _ i x '(s, a) => (s, ffun_set (fin_decode i) x a, tt)).
 
-(*
 Definition astate_ret {sig A} a := @astate_ret_ sig A a.
 Definition astate_bind {sig A B} := @astate_bind_ sig A B.
 Definition astate_lift {Ix T sig A} := @astate_lift_ Ix T sig A.
 Definition astate_GET {Ix T sig} := @astate_GET_ Ix T sig.
 Definition astate_SET {Ix T sig} := @astate_SET_ Ix T sig.
-*)
 
 Notation astate_get i := (astate_GET (fin_encode i)).
 Notation astate_set i x := (astate_SET (fin_encode i) x).

@@ -128,18 +128,7 @@ Extract Constant codom_tuple =>
   "(fun t f ->
      Array.init
      t.Finite.mixin.Finite.mixin_card
-     (fun i -> f (EncDecDef.fin_decode t i)))".
-
-(*
-Extract Constant EncDecDef.fin_encode =>
-  "(fun t x -> (Finite.coq_class t).Finite.mixin.Finite.mixin_encode x)".
-
-Extract Constant EncDecDef.fin_decode =>
-  "(fun t i -> (Finite.coq_class t).Finite.mixin.Finite.mixin_decode i)".
-
-Extract Constant FunFinfun.fun_of_fin =>
-  "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
-*)
+     (fun i -> f (t.Finite.mixin.Finite.mixin_decode i)))".
 
 Extraction Inline
   fin_encode fin_decode fun_of_fin finfun fgraph
@@ -149,7 +138,8 @@ Extraction Inline
   ordinal_finType ordinal_finMixin ordinal_countType ordinal_countMixin
   ordinal_choiceType ordinal_choiceMixin ordinal_eqType ordinal_eqMixin
   prod_finType prod_finMixin prod_countType prod_countMixin
-  prod_choiceType prod_choiceMixin prod_eqType prod_eqMixin.
+  prod_choiceType prod_choiceMixin prod_eqType prod_eqMixin
+  prod_fin_encode.
 
 (* avoiding extractor bugs: type mismatch, assertion failure, etc. *)
 
@@ -176,18 +166,17 @@ Extract Inductive AState => "runt_AState_"
    " (fun i s -> (Obj.magic snd s).(i))"
    " (function (i, x) -> fun s -> (Obj.magic snd s).(i) <- x)"]
   "".
+Extract Type Arity AState 1.
 
-(*
-Extract Constant astate_ret => "(fun a s -> a)".
-Extract Constant astate_bind =>
+Extract Inlined Constant astate_ret => "(fun a s -> a)".
+Extract Inlined Constant astate_bind =>
   "(fun f g s -> let r = f s in g r s)".
-Extract Constant astate_lift =>
+Extract Inlined Constant astate_lift =>
   "(fun f s -> f (Obj.magic fst s))".
-Extract Constant astate_GET =>
+Extract Inlined Constant astate_GET =>
   "(fun i s -> (Obj.magic snd s).(i))".
-Extract Constant astate_SET =>
+Extract Inlined Constant astate_SET =>
   "(fun i x s -> (Obj.magic snd s).(i) <- x)".
-*)
 
 (*
 Extract Inductive AState => "runt_AState_"
@@ -208,9 +197,12 @@ Extract Constant run_AState =>
     let s' = copy sign s in
     let r = Obj.magic f s' in (s', r))".
 
-Extraction Implicit miterate_revord [sig].
+Extraction Implicit miterate_revord [sig n].
 Extraction Implicit miterate_revfin [sig].
 Extraction Implicit miterate_fin [sig].
+
+Extraction Inline
+  AState_monadType iterate_revfin iterate_fin miterate_revfin miterate_fin.
 
 (*
 Definition x Ix T sig A B (a : AState sig A) (f : A -> AState sig B) :=
