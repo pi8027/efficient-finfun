@@ -1,0 +1,12 @@
+[submodule "math-comp-orig"]
+	path = math-comp-orig
+	url = git@github.com:pi8027/math-comp.git
+[submodule "math-comp-mod"]
+	path = math-comp-mod
+	url = git@github.com:pi8027/math-comp.git
+[submodule "coq-orig"]
+	path = coq-orig
+	url = git@github.com:pi8027/coq.git
+[submodule "coq-mod"]
+	path = coq-mod
+	url = git@github.com:pi8027/coq.git
