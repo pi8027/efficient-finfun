@@ -1,8 +1,21 @@
 #!/bin/zsh
 
+eval `opam config env --switch=4.04.0+flambda`
+
 cd `dirname $0`
 BASEDIR=`pwd`
 INIT_PATH=$PATH
+
+yes_no_prompt(){
+while true; do
+  read "l?$1"
+  case $l:l in
+    yes) return 0;;
+    no) return 1;;
+    *) echo Pleas answer by YES or NO. ;;
+  esac
+done
+}
 
 envset(){
   case $1 in
@@ -11,13 +24,12 @@ envset(){
   esac
   
   MATHCOMP=$BASEDIR/math-comp-$KIND/mathcomp
-  REGULAR=$BASEDIR/regular-$KIND
   export COQBIN=$BASEDIR/coq-$KIND/bin/
   export COQLIB=(-I $MATHCOMP -R $MATHCOMP mathcomp)
   export PATH=$COQBIN:$INIT_PATH
 }
 
-eval `opam config env --switch=4.04.0+flambda`
+yes_no_prompt "Coq, MathComp and the regular language library will be rebuilt. Do you want to continue? [yes/no] " || exit 1
 
 foreach dir (coq-orig coq-mod)
 pushd $dir
@@ -49,6 +61,6 @@ pushd $dir
   patch -p1 < ../regular.patch
   coq_makefile -f Make > Makefile
   make clean
-  make COQLIBS="-R . regular $COQLIB"
+  make COQLIBS="-R . regular $COQLIB" -j 8
 popd
 end

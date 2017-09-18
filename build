@@ -1,26 +1,24 @@
 #!/bin/zsh
 
+eval `opam config env --switch=4.04.0+flambda`
+
+cd `dirname $0`
+BASEDIR=`pwd`
+
 envset(){
-case $1 in
-theories/before)
-  COQBIN=/usr/local/coq8.6/bin
-  MATHCOMP=/usr/local/coq8.6/math-comp-mathcomp-1.6.1/mathcomp
-  COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp -R ~/src/coq/regular/ regular"
-  vfiles=(presburger.v extraction.v)
-;;
-theories/after)
-  COQBIN=/usr/local/coq8.6/bin
-  MATHCOMP=/usr/local/coq8.6/mod-mathcomp-1.6.1/mathcomp
-  COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp -R ~/src/coq/mod-regular/ regular"
-  vfiles=(presburger.v extraction.v)
-;;
-theories/marray)
-  COQBIN=/usr/local/coq-lift-abs/bin
-  MATHCOMP=~/wrk/math-comp/mathcomp
-  COQLIB="-R . \"\" -I $MATHCOMP -R $MATHCOMP mathcomp"
-  vfiles=(core.v extraction_ocaml.v union_find.v floyd_warshall.v)
-;;
-esac
+  case $1 in
+  theories/before) KIND=orig; vfiles=(presburger.v extraction.v) ;;
+  theories/after) KIND=mod; vfiles=(presburger.v extraction.v) ;;
+  theories/marray)
+    KIND=mod
+    vfiles=(core.v extraction_ocaml.v union_find.v floyd_warshall.v)
+  ;;
+  esac
+
+  MATHCOMP=$BASEDIR/math-comp-$KIND/mathcomp
+  REGULAR=$BASEDIR/regular-$KIND
+  COQBIN=$BASEDIR/coq-$KIND/bin
+  COQLIB=(-I $MATHCOMP -R $MATHCOMP mathcomp -R $REGULAR regular)
 }
 
 export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
@@ -30,7 +28,7 @@ puterr(){
   error=1
 }
 
-#### Coq
+#### Proof Scripts
 
 foreach dir (theories/before theories/after theories/marray)
 pushd $dir
@@ -52,9 +50,7 @@ pushd $dir
 popd # theories/*
 end
 
-#### OCaml
-
-eval `opam config env --switch=4.04.0+flambda`
+#### Benchmarks
 
 pushd ocaml
 
