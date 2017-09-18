@@ -1,0 +1,54 @@
+#!/bin/zsh
+
+cd `dirname $0`
+BASEDIR=`pwd`
+INIT_PATH=$PATH
+
+envset(){
+  case $1 in
+  coq-orig|math-comp-orig|regular-orig) KIND=orig ;;
+  coq-mod|math-comp-mod|regular-mod) KIND=mod ;;
+  esac
+  
+  MATHCOMP=$BASEDIR/math-comp-$KIND/mathcomp
+  REGULAR=$BASEDIR/regular-$KIND
+  export COQBIN=$BASEDIR/coq-$KIND/bin/
+  export COQLIB=(-I $MATHCOMP -R $MATHCOMP mathcomp)
+  export PATH=$COQBIN:$INIT_PATH
+}
+
+eval `opam config env --switch=4.04.0+flambda`
+
+foreach dir (coq-orig coq-mod)
+pushd $dir
+  envset $dir
+  make clean
+  make archclean
+  ./configure -debug -local -native-compiler no -camlp5dir $(ocamlfind query camlp5)
+  make -j 8
+popd
+end
+
+foreach dir (math-comp-orig math-comp-mod)
+pushd $dir/mathcomp
+  envset $dir
+  make clean
+  make -j 8
+popd
+end
+
+[[ -f regular.tar.gz ]] || \
+    wget -O regular.tar.gz \
+    http://www.ps.uni-saarland.de/~doczkal/regular/ConstructiveRegularLanguages-2013-12-07.tgz
+
+foreach dir (regular-orig regular-mod)
+mkdir -p $dir
+pushd $dir
+  envset $dir
+  tar xzf ../regular.tar.gz
+  patch -p1 < ../regular.patch
+  coq_makefile -f Make > Makefile
+  make clean
+  make COQLIBS="-R . regular $COQLIB"
+popd
+end
