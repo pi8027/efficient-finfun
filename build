@@ -1,24 +1,25 @@
 #!/bin/zsh
 
-eval `opam config env --switch=4.04.0+flambda`
+eval `opam config env --switch=4.05.0+flambda`
 
 cd `dirname $0`
 BASEDIR=`pwd`
 
 envset(){
   case $1 in
-  theories/before) KIND=orig; vfiles=(presburger.v extraction.v) ;;
-  theories/after) KIND=mod; vfiles=(presburger.v extraction.v) ;;
+  theories/before) COQVER=orig; vfiles=(presburger.v extraction.v) ;;
+  theories/after) COQVER=mod; vfiles=(presburger.v extraction.v) ;;
   theories/marray)
-    KIND=mod
+    COQVER=mod
     vfiles=(core.v extraction_ocaml.v union_find.v floyd_warshall.v)
   ;;
   esac
 
-  MATHCOMP=$BASEDIR/math-comp-$KIND/mathcomp
-  REGULAR=$BASEDIR/regular-$KIND
-  COQBIN=$BASEDIR/coq-$KIND/bin
-  COQLIB=(-I $MATHCOMP -R $MATHCOMP mathcomp -R $REGULAR regular)
+  MATHCOMP=$BASEDIR/math-comp-$COQVER/mathcomp
+  REGULAR=$BASEDIR/regular-$COQVER
+  COQPREFIX=$BASEDIR/coq-$COQVER
+  COQBIN=$COQPREFIX/bin
+  COQLIB="-I $MATHCOMP -R $MATHCOMP mathcomp -R $REGULAR regular"
 }
 
 export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
@@ -45,6 +46,7 @@ pushd $dir
   [[ -n $error ]] && exit 1
 
   (echo $COQLIB; echo $vfiles) > _CoqProject
+
   make -j ${JOBS:-4} VFILES="$vfiles" PATH="$COQBIN:$PATH" COQLIBS="$COQLIB"
 
 popd # theories/*
