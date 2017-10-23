@@ -183,34 +183,47 @@ Fixpoint partition_rec (pivot : A) (i j : 'I_#|I|.+1) (n : nat) :
     | _, _ => fun _ => astate_ret i_
   end (erefl (i_ < j_)).
 
-Lemma run_partition_rec
-      (pivot : A) (i j : 'I_#|I|.+1) (n : nat) (arr : {ffun I -> A}) :
-  i <= j <= n + i ->
-  let '(_, arr', k) := run_AState (partition_rec pivot i j n) (tt, arr) in
-  exists2 p : {perm I},
-    arr' = [ffun ix => arr (p ix)] &
-    (forall ix : 'I_#|I|, (ix < i) || (j <= ix) ->
-                          p (fin_decode ix) = fin_decode ix) /\
-    (forall ix : 'I_#|I|, i <= ix < k -> ~~ cmp pivot (arr' (fin_decode ix))) /\
-    (forall ix : 'I_#|I|, k <= ix < j -> cmp pivot (arr' (fin_decode ix))).
+Definition partition (pivot : A) (i j : 'I_#|I|.+1) :
+  AState [:: (I, A)] 'I_#|I|.+1 :=
+  partition_rec pivot i j (j - i).
+
+CoInductive partition_spec
+            (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
+  unit * {ffun I -> A} * 'I_#|I|.+1 -> Prop :=
+  PartitionSpec (p : {perm I}) (k : 'I_#|I|.+1) :
+  let arr' := [ffun ix => arr (p ix)] in
+  i <= k <= j ->
+  (forall ix : 'I_#|I|, (ix < i) || (j <= ix) ->
+                        p (fin_decode ix) = fin_decode ix) ->
+  (forall ix : 'I_#|I|, i <= ix < k -> ~~ cmp pivot (arr' (fin_decode ix))) ->
+  (forall ix : 'I_#|I|, k <= ix < j -> cmp pivot (arr' (fin_decode ix))) ->
+  partition_spec pivot i j arr (tt, arr', k).
+
+Lemma run_partition (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
+  i <= j ->
+  partition_spec pivot i j arr (run_AState (partition pivot i j) (tt, arr)).
 Proof.
-elim: n i j arr => /= [| n IH] i j arr.
+rewrite /partition => H.
+have {H}: i <= j <= j - i + i by rewrite H /= subnK.
+have Hid_arr (arr' : {ffun I -> A}):
+  arr' = [ffun ix => arr' ((1%g : {perm I}) ix)]
+  by apply/ffunP => ix; rewrite ffunE permE.
+move: (j - i) => n; elim: n i j arr => /= [| n IH] i j arr.
 - rewrite add0n -eqn_leq => /eqP /ord_inj Hij; subst j.
   case: run_up_search => // i';
     rewrite -eqn_leq => /eqP /ord_inj Hii'; subst i' => _ _;
     case: run_down_search => // _ _ _ _.
-  exists 1%g; first by apply/ffunP => ix; rewrite ffunE permE.
-  split; first by move => ix _; rewrite permE.
-  by split => ix /andP [] H H0; move: (leq_trans H0 H); rewrite ltnn.
+  by rewrite {2}(Hid_arr arr); constructor; rewrite ?leqnn // => ix;
+    rewrite ?ffunE permE // => /andP [] H H0; move: (leq_trans H0 H);
+    rewrite ltnn.
 - rewrite addSn => /andP [] H H0.
   case: run_up_search => // i_ /andP [] Hi_ Hi_' Hup Hup'.
   case: run_down_search => // j_ /andP [] Hj_ Hj_' Hdown Hdown'.
   case: {2 3}(i_ < j_) (erefl (i_ < j_));
-   last by move/negbT; rewrite -leqNgt => Hji_;
-      (exists 1%g; first by apply/ffunP => ix; rewrite ffunE permE);
-      (split; first by move => ix _; rewrite permE);
-      split => // ix /andP [] H1 H2;
-        move: (Hdown' ix); rewrite (leq_trans Hji_ H1) H2 negbK => ->.
+    last by move/negbT; rewrite -leqNgt => Hji_; rewrite {2}(Hid_arr arr);
+      constructor; rewrite ?(leq_trans Hj_ Hji_) ?Hi_' // => ix;
+      rewrite ?ffunE permE //; auto => /andP [] H1 H2;
+      move: (Hdown' ix); rewrite (leq_trans Hji_ H1) H2 negbK => ->.
   move => Hij_ /=; rewrite run_swap.
   have Hij_': i_.+1 < j_.
     move: Hij_; rewrite leq_eqVlt => /orP [] // /eqP Hij_.
@@ -220,11 +233,10 @@ elim: n i j arr => /= [| n IH] i j arr.
   set i' := @Ordinal #|I| i_ _. set j' := @Ordinal #|I| j_.-1 _.
   set i'' := @Ordinal #|I|.+1 i_.+1 _. set j'' := @Ordinal #|I|.+1 j_.-1 _.
   set arr' := [ffun k => _].
-  have/(IH i'' j'' arr'): i'' <= j'' <= n + i''
+  have/(IH i'' j'' arr') [/= p k /andP [H1 H2] H3]: i'' <= j'' <= n + i''
     by subst arr' i' j' i'' j''; apply/andP; split;
        rewrite -ltnS (ltn_predK Hij_) //=;
        apply (leq_trans Hj_'), (leq_trans H0); rewrite ltnS leq_add2l leqW.
-  case: run_AState => [] [] _ arr'' k [p] -> {arr''} [] H1 [].
   have {arr'} ->:
        [ffun ix => arr' (p ix)] =
        [ffun ix => arr ((p * tperm (fin_decode i') (fin_decode j'))%g ix)] by
@@ -232,10 +244,11 @@ elim: n i j arr => /= [| n IH] i j arr.
     do ?(move => -> || move/(introF eqP) => ->); rewrite ?eqxx //;
     case: ifP Hij_' => // /eqP/fin_decode_inj/(f_equal (@nat_of_ord _)) /= <-;
     rewrite (ltn_predK Hij_) ltnn.
-  move => H2 H3; exists (p * tperm (fin_decode i') (fin_decode j'))%g => //;
-    split; last split => ix /andP [Hix Hix'].
+  move => H4 H5; constructor.
+  + by rewrite (leq_trans Hi_ (ltnW H1))
+               (leq_trans H2 (leq_trans (leq_pred _) Hj_')).
   + move => ix Hix; rewrite permM.
-    have/H1 ->: (ix < i'') || (j'' <= ix) by
+    have/H3 ->: (ix < i'') || (j'' <= ix) by
       move/orP: Hix => [ /leq_trans/(_ Hi_)/leqW |
                          /(leq_trans Hj_')/(leq_trans (leq_pred _))] -> //;
       rewrite orbT.
@@ -243,20 +256,20 @@ elim: n i j arr => /= [| n IH] i j arr.
        subst ix; move: Hix; apply/negP;
        rewrite negb_or -leqNgt -ltnNge /= ?Hi_ /= ?(leq_trans Hij_ Hj_') //
                -ltnS (ltn_predK Hij_) (leq_ltn_trans Hi_ Hij_).
-  + case: (ltngtP i' ix).
-    * by move => Hix''; apply/H2/andP; split.
-    * move => Hix''; rewrite ffunE permM tpermD H1 ?leqW //.
+  + move => ix /andP [] Hix Hix'; case: (ltngtP i' ix).
+    * by move => Hix''; apply/H4/andP; split.
+    * move => Hix''; rewrite ffunE permM tpermD H3 ?leqW //.
       - by rewrite Hup' ?Hix ?Hix''.
       - by apply/eqP => /fin_decode_inj Hix''';
            subst ix; move: Hix''; rewrite ltnn.
       - by apply/eqP => /fin_decode_inj Hix'''; subst ix; move: Hix'';
            rewrite (ltn_predK Hij_) => /(leq_trans Hij_); rewrite ltnn.
     * move/ord_inj => Hix''; subst ix.
-      rewrite ffunE permM H1 ?leqnn //= tpermL Hdown ?(ltn_predK Hij_) //=.
+      rewrite ffunE permM H3 ?leqnn //= tpermL Hdown ?(ltn_predK Hij_) //=.
       by apply (leq_ltn_trans Hi_ Hij_).
-  + case: (ltngtP ix j').
-    * by move => Hix''; apply/H3/andP; split.
-    * move => Hix''; rewrite ffunE permM tpermD H1 ?(ltnW Hix'') ?orbT //.
+  + move => ix /andP [] Hix Hix'; case: (ltngtP ix j').
+    * by move => Hix''; apply/H5/andP; split.
+    * move => Hix''; rewrite ffunE permM tpermD H3 ?(ltnW Hix'') ?orbT //.
       - by rewrite -(negbK (cmp _ _)) Hdown' // (leq_trans _ Hix'') //=
                    (ltn_predK Hij_).
       - by apply/eqP => /fin_decode_inj Hix'''; subst ix; move: Hix'';
@@ -264,7 +277,7 @@ elim: n i j arr => /= [| n IH] i j arr.
       - by apply/eqP => /fin_decode_inj Hix''';
            subst ix; move: Hix''; rewrite ltnn.
     * move/ord_inj => Hix''; subst ix.
-      rewrite ffunE permM H1 ?leqnn ?orbT //= tpermR Hup //=.
+      rewrite ffunE permM H3 ?leqnn ?orbT //= tpermR Hup //=.
       by apply (leq_trans Hij_ Hj_').
 Qed.
 
