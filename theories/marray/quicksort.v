@@ -281,4 +281,33 @@ move: (j - i) => n; elim: n i j arr => /= [| n IH] i j arr.
       by apply (leq_trans Hij_ Hj_').
 Qed.
 
+Lemma quicksort_rec_subproof1 (i j : 'I_#|I|.+1) : i < j -> i < #|I|.
+Proof. by move => H; rewrite (leq_trans H (ltn_ord j)). Qed.
+
+Lemma quicksort_rec_subproof2 (i j : 'I_#|I|.+1) : i < j -> i.+1 < #|I|.+1.
+Proof. by move => H; rewrite ltnS (leq_trans H (ltn_ord j)). Qed.
+
+Lemma quicksort_rec_subproof3 ( k : 'I_#|I|.+1) : k.-1 < #|I|.+1.
+Proof. by case: k => [[| k]] //= /ltnW. Qed.
+
+Lemma quicksort_rec_subproof4 (i j k : 'I_#|I|.+1) : i < j -> k.-1 < #|I|.
+Proof.
+by case: k => [[| k] _] //=;
+   rewrite -ltnS => /leq_trans/(_ (ltn_ord j)); case: {2 3}#|I|.
+Qed.
+
+Fixpoint quicksort_rec (i j : 'I_#|I|.+1) (n : nat) :
+  AState [:: (I, A)] unit :=
+  match n, i.+1 < j as cij return i.+1 < j = cij -> _ with
+    | n'.+1, true => fun H : i.+1 < j =>
+      let i' := @Ordinal #|I| i (quicksort_rec_subproof1 (ltnW H)) in
+      let si := @Ordinal #|I|.+1 i.+1 (quicksort_rec_subproof2 (ltnW H)) in
+      pivot <- astate_GET i';
+      k <- partition pivot si j;
+      let pk := @Ordinal #|I|.+1 k.-1 (quicksort_rec_subproof3 k) in
+      let pk' := @Ordinal #|I| k.-1 (quicksort_rec_subproof4 k (ltnW H)) in
+      swap i' pk';; quicksort_rec i pk n';; quicksort_rec k j n'
+    | _, _ => fun _ => astate_ret tt
+  end (erefl (i.+1 < j)).
+
 End Quicksort.
