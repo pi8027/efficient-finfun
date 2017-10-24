@@ -152,13 +152,11 @@ Definition swap (i j : 'I_#|I|) : AState [:: (I, A)] unit :=
   x <- astate_GET i; y <- astate_GET j; astate_SET i y;; astate_SET j x.
 
 Lemma run_swap (i j : 'I_#|I|) (f : {ffun I -> A}) :
-  let i' := fin_decode i in
-  let j' := fin_decode j in
   run_AState (swap i j) (tt, f) =
-  (tt, [ffun k => if k == i' then f j' else if k == j' then f i' else f k], tt).
+  (tt, [ffun k => f (tperm (fin_decode i) (fin_decode j) k)], tt).
 Proof.
 congr (tt, _, tt); apply/ffunP => k;
-  rewrite !ffunE; do !case: eqP => /=; congruence.
+  rewrite !ffunE /=; case: tpermP; do !case: eqP => /=; congruence.
 Qed.
 
 Opaque swap.
@@ -193,8 +191,7 @@ CoInductive partition_spec
   PartitionSpec (p : {perm I}) (k : 'I_#|I|.+1) :
   let arr' := [ffun ix => arr (p ix)] in
   i <= k <= j ->
-  (forall ix : 'I_#|I|, (ix < i) || (j <= ix) ->
-                        p (fin_decode ix) = fin_decode ix) ->
+  perm_on [set ix | i <= fin_encode ix < j] p ->
   (forall ix : 'I_#|I|, i <= ix < k -> ~~ cmp pivot (arr' (fin_decode ix))) ->
   (forall ix : 'I_#|I|, k <= ix < j -> cmp pivot (arr' (fin_decode ix))) ->
   partition_spec pivot i j arr (tt, arr', k).
@@ -213,7 +210,7 @@ move: (j - i) => n; elim: n i j arr => /= [| n IH] i j arr.
   case: run_up_search => // i';
     rewrite -eqn_leq => /eqP /ord_inj Hii'; subst i' => _ _;
     case: run_down_search => // _ _ _ _.
-  by rewrite {2}(Hid_arr arr); constructor; rewrite ?leqnn // => ix;
+  by rewrite {2}(Hid_arr arr); constructor; rewrite ?leqnn ?perm_on1 // => ix;
     rewrite ?ffunE permE // => /andP [] H H0; move: (leq_trans H0 H);
     rewrite ltnn.
 - rewrite addSn => /andP [] H H0.
@@ -221,7 +218,7 @@ move: (j - i) => n; elim: n i j arr => /= [| n IH] i j arr.
   case: run_down_search => // j_ /andP [] Hj_ Hj_' Hdown Hdown'.
   case: {2 3}(i_ < j_) (erefl (i_ < j_));
     last by move/negbT; rewrite -leqNgt => Hji_; rewrite {2}(Hid_arr arr);
-      constructor; rewrite ?(leq_trans Hj_ Hji_) ?Hi_' // => ix;
+      constructor; rewrite ?(leq_trans Hj_ Hji_) ?Hi_' ?perm_on1 // => ix;
       rewrite ?ffunE permE //; auto => /andP [] H1 H2;
       move: (Hdown' ix); rewrite (leq_trans Hji_ H1) H2 negbK => ->.
   move => Hij_ /=; rewrite run_swap.
@@ -239,46 +236,42 @@ move: (j - i) => n; elim: n i j arr => /= [| n IH] i j arr.
        apply (leq_trans Hj_'), (leq_trans H0); rewrite ltnS leq_add2l leqW.
   have {arr'} ->:
        [ffun ix => arr' (p ix)] =
-       [ffun ix => arr ((p * tperm (fin_decode i') (fin_decode j'))%g ix)] by
-    apply/ffunP => ix; rewrite !ffunE permM; case: tpermP;
-    do ?(move => -> || move/(introF eqP) => ->); rewrite ?eqxx //;
-    case: ifP Hij_' => // /eqP/fin_decode_inj/(f_equal (@nat_of_ord _)) /= <-;
-    rewrite (ltn_predK Hij_) ltnn.
+       [ffun ix => arr ((p * tperm (fin_decode i') (fin_decode j'))%g ix)]
+    by apply/ffunP => ix; rewrite !ffunE permM.
   move => H4 H5; constructor.
   + by rewrite (leq_trans Hi_ (ltnW H1))
                (leq_trans H2 (leq_trans (leq_pred _) Hj_')).
-  + move => ix Hix; rewrite permM.
-    have/H3 ->: (ix < i'') || (j'' <= ix) by
-      move/orP: Hix => [ /leq_trans/(_ Hi_)/leqW |
-                         /(leq_trans Hj_')/(leq_trans (leq_pred _))] -> //;
-      rewrite orbT.
-    by rewrite tpermD ?fin_decodeK //; apply/eqP => /fin_decode_inj Hix';
-       subst ix; move: Hix; apply/negP;
-       rewrite negb_or -leqNgt -ltnNge /= ?Hi_ /= ?(leq_trans Hij_ Hj_') //
-               -ltnS (ltn_predK Hij_) (leq_ltn_trans Hi_ Hij_).
+  + apply perm_onM; first apply (subset_trans H3);
+      apply/subsetP => ix; rewrite !inE;
+      first by case/andP => /= /ltnW /(leq_trans Hi_) -> /= H6;
+               case: (nat_of_ord j_) H6 Hj_' => //= j_'; apply ltn_trans.
+    by case: tpermP; rewrite ?eq_refl // => ->;
+      rewrite fin_decodeK ?Hi_ ?(leq_trans Hij_ Hj_') //=
+              -1?ltnS ?(ltn_predK Hij_) ?Hj_' ?(leq_ltn_trans Hi_ Hij_).
   + move => ix /andP [] Hix Hix'; case: (ltngtP i' ix).
     * by move => Hix''; apply/H4/andP; split.
-    * move => Hix''; rewrite ffunE permM tpermD H3 ?leqW //.
+    * move => Hix''.
+      rewrite ffunE permM (out_perm H3) ?inE ?fin_decodeK 1?ltnNge 1?ltnW ?Hix''
+              // tpermD ?(inj_eq (@fin_decode_inj _)) ?(inj_eq (@ord_inj _)).
       - by rewrite Hup' ?Hix ?Hix''.
-      - by apply/eqP => /fin_decode_inj Hix''';
-           subst ix; move: Hix''; rewrite ltnn.
-      - by apply/eqP => /fin_decode_inj Hix'''; subst ix; move: Hix'';
-           rewrite (ltn_predK Hij_) => /(leq_trans Hij_); rewrite ltnn.
+      - by rewrite neq_ltn Hix'' orbT.
+      - by rewrite neq_ltn (leq_trans Hix' H2) orbT.
     * move/ord_inj => Hix''; subst ix.
-      rewrite ffunE permM H3 ?leqnn //= tpermL Hdown ?(ltn_predK Hij_) //=.
-      by apply (leq_ltn_trans Hi_ Hij_).
+      by rewrite ffunE permM (out_perm H3) ?inE ?fin_decodeK ?ltnn //
+                 tpermL Hdown ?(ltn_predK Hij_) //= (leq_ltn_trans Hi_ Hij_).
   + move => ix /andP [] Hix Hix'; case: (ltngtP ix j').
     * by move => Hix''; apply/H5/andP; split.
-    * move => Hix''; rewrite ffunE permM tpermD H3 ?(ltnW Hix'') ?orbT //.
+    * move => Hix''.
+      rewrite ffunE permM tpermD (out_perm H3) ?inE ?fin_decodeK
+              ?ltnNge ?(ltnW Hix'') ?andbF //=
+              ?(inj_eq (@fin_decode_inj _)) ?(inj_eq (@ord_inj _)).
       - by rewrite -(negbK (cmp _ _)) Hdown' // (leq_trans _ Hix'') //=
                    (ltn_predK Hij_).
-      - by apply/eqP => /fin_decode_inj Hix'''; subst ix; move: Hix'';
-           rewrite (ltn_predK Hij_) => /(leq_trans Hij_); rewrite ltnn.
-      - by apply/eqP => /fin_decode_inj Hix''';
-           subst ix; move: Hix''; rewrite ltnn.
+      - by rewrite neq_ltn (leq_trans H1 Hix).
+      - by rewrite neq_ltn Hix''.
     * move/ord_inj => Hix''; subst ix.
-      rewrite ffunE permM H3 ?leqnn ?orbT //= tpermR Hup //=.
-      by apply (leq_trans Hij_ Hj_').
+      by rewrite ffunE permM (out_perm H3) ?inE ?fin_decodeK ?ltnn ?andbF //=
+                 tpermR Hup //= (leq_trans Hij_ Hj_').
 Qed.
 
 Lemma quicksort_rec_subproof1 (i j : 'I_#|I|.+1) : i < j -> i < #|I|.
@@ -287,7 +280,7 @@ Proof. by move => H; rewrite (leq_trans H (ltn_ord j)). Qed.
 Lemma quicksort_rec_subproof2 (i j : 'I_#|I|.+1) : i < j -> i.+1 < #|I|.+1.
 Proof. by move => H; rewrite ltnS (leq_trans H (ltn_ord j)). Qed.
 
-Lemma quicksort_rec_subproof3 ( k : 'I_#|I|.+1) : k.-1 < #|I|.+1.
+Lemma quicksort_rec_subproof3 (k : 'I_#|I|.+1) : k.-1 < #|I|.+1.
 Proof. by case: k => [[| k]] //= /ltnW. Qed.
 
 Lemma quicksort_rec_subproof4 (i j k : 'I_#|I|.+1) : i < j -> k.-1 < #|I|.
