@@ -107,7 +107,7 @@ Extract Inductive
                 "(fun f t -> f (Array.to_list t))".
 
 Extraction Implicit tnth [n].
-Extract Constant tnth => "(fun t i -> t.(i))".
+Extract Constant tnth => "Array.get". (*"(fun t i -> t.(i))"*)
 
 (*
 Extract Constant map_tuple => "(fun _ f t -> Array.map f t)".
@@ -119,7 +119,7 @@ Extract Constant codom_tuple =>
   "(fun t f ->
      Array.init
      t.Finite.mixin.Finite.mixin_card
-     (fun i -> f (EncDecDef.fin_decode t i)))".
+     (fun i -> f (t.Finite.mixin.Finite.mixin_decode i)))".
 
 Extract Constant EncDecDef.fin_encode =>
   "(fun t x -> (Finite.coq_class t).Finite.mixin.Finite.mixin_encode x)".
@@ -129,6 +129,17 @@ Extract Constant EncDecDef.fin_decode =>
 
 Extract Constant FunFinfun.fun_of_fin =>
   "(fun aT f x -> f.(EncDecDef.fin_encode aT x))".
+
+Extraction Inline
+  finfun fgraph
+  Finite.mixin_base Finite.mixin_card Finite.mixin_encode Finite.mixin_decode
+  Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone
+  Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
+  ordinal_finType ordinal_finMixin ordinal_countType ordinal_countMixin
+  ordinal_choiceType ordinal_choiceMixin ordinal_eqType ordinal_eqMixin
+  prod_finType prod_finMixin prod_countType prod_countMixin
+  prod_choiceType prod_choiceMixin prod_eqType prod_eqMixin
+  prod_fin_encode.
 
 (* avoiding extractor bugs: type mismatch, assertion failure, etc. *)
 

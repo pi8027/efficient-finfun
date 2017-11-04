@@ -1,4 +1,4 @@
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import all_ssreflect fingroup perm.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -306,33 +306,19 @@ Qed.
 
 End Iteration_finType.
 
-(* Examples *)
+Definition swap (I : finType) {A : Type} (i j : 'I_#|I|) :
+  AState [:: (I, A)] unit :=
+  x <- astate_GET i; y <- astate_GET j; astate_SET i y;; astate_SET j x.
 
-Module Examples.
-
-Definition swap (Ix : finType) {A : Type} i j : AState [:: (Ix, A)] unit :=
-  Eval simpl in
-  x <- astate_get i;
-  y <- astate_get j;
-  astate_set i y;; astate_set j x.
-
-Lemma run_swap (Ix : finType) (A : Type) (i j : Ix) (f : {ffun Ix -> A}) :
+Lemma run_swap (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
   run_AState (swap i j) (tt, f) =
-  (tt, [ffun k => if k == i then f j else if k == j then f i else f k], tt).
+  (tt, [ffun k => f (tperm (fin_decode i) (fin_decode j) k)], tt).
 Proof.
-rewrite /= !fin_encodeK.
-congr (tt, _, tt); apply/ffunP => k; rewrite !ffunE; do !case: eqP; congruence.
+congr (tt, _, tt); apply/ffunP => k;
+  rewrite !ffunE /=; case: tpermP; do !case: eqP => /=; congruence.
 Qed.
 
-Opaque swap.
-Lemma run_lift_swap (Ix Ix' : finType) (A B : Type) i j f g :
-  run_AState (sig := [:: (Ix, A); (Ix', B)])
-             (astate_lift (swap i j)) (tt, f, g) =
-  (tt, [ffun k => if k == i then f j else if k == j then f i else f k], g, tt).
-Proof. by rewrite /= run_swap. Qed.
-Transparent swap.
-
-End Examples.
+Global Opaque swap.
 
 (*
 Print Finite.class_of.

@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect all_algebra.
-Require Import core.
+Require Import ordinal_ext core.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -76,6 +76,9 @@ Extract Inlined Constant nat_of_ord => "(* nat_of_ord *)".
 
 Extraction Implicit cast_ord [n m].
 Extract Inlined Constant cast_ord => "(* cast_ord *)".
+
+Extraction Inline
+  ord0 ord_max lshift' rshift' ltnidx_l ltnidx_ls ltnidx_rp ord_pred.
 
 (* int *)
 
@@ -165,7 +168,7 @@ Extract Inductive AState => "runt_AState_"
    " (fun f s -> f (Obj.magic fst s))"
    " (fun i s -> (Obj.magic snd s).(i))"
    " (function (i, x) -> fun s -> (Obj.magic snd s).(i) <- x)"]
-  "".
+  "(* It is not permitted to use AState_rec in extracted code. *)".
 Extract Type Arity AState 1.
 
 Extract Inlined Constant astate_ret => "(fun a s -> a)".
@@ -203,13 +206,3 @@ Extraction Implicit miterate_fin [sig].
 
 Extraction Inline
   AState_monadType iterate_revfin iterate_fin miterate_revfin miterate_fin.
-
-(*
-Definition x Ix T sig A B (a : AState sig A) (f : A -> AState sig B) :=
-  Eval simpl in @astate_lift Ix T _ _ (a' <- a; f a').
-Definition y Ix T sig A B (a : AState sig A) (f : A -> AState sig B) :=
-  Eval simpl in a' <- @astate_lift Ix T _ _ a; astate_lift (f a').
-
-Extraction x.
-Extraction y.
-*)
