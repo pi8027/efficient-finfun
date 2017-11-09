@@ -597,6 +597,11 @@ Definition munion := munion Rop cmp.
 End WUF.
 
 Require Import extraction_ocaml.
-
 Unset Extraction SafeImplicits.
+Set Extraction Flag 8175.
+
+Extraction Inline
+  mfind_rec mfind munion WUF.R WUF.Ridx WUF.Rop WUF.cmp
+  Monoid.operator Monoid.com_operator addn_comoid addn_monoid.
+
 Extraction "../../ocaml/wuf.ml" runt_AState runt_AState_ ordinal_finType WUF.

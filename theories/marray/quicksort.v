@@ -64,7 +64,8 @@ Definition down_search :
                x <- astate_GET (ltnidx_rp H);
                if f x
                then astate_ret i
-               else rec (ord_pred i) (down_search_subproof H) j
+               else rec (ord_pred' (i := i) (ltnm0m H))
+                        (down_search_subproof H) j
         else fun _ => astate_ret j)
        (erefl (j < i))).
 
@@ -85,7 +86,7 @@ elim/Acc_ind: i / Hi (Hi) => i _ IH Hi Hji /=.
 rewrite -Fix_F_eq /=.
 case: {2 3}(j < i) (erefl (j < i)) => H /=; first case: ifP => /= H0.
 - constructor => [| k' H1 H2 |]; try ssromega.
-  by move: H0; congr (f (arr (_ _))); apply/ord_inj; rewrite /= H1.
+  by move: H0; congr (f (arr (_ _))); apply/ord_inj; rewrite /= /predn' H1.
 - move: {IH} (ltn_predK H)
     (let H' : ord_pred i < i := down_search_subproof H in
      IH (ord_pred i) H' (Acc_inv Hi _ H'))
@@ -116,7 +117,7 @@ Fixpoint partition_rec (pivot : A) (i j : 'I_#|I|.+1) (n : nat) :
   match n, i_ < j_ as cij return i_ < j_ = cij -> _ with
     | n'.+1, true => fun H : i_ < j_ =>
       swap (ltnidx_l H) (ltnidx_rp H);;
-      partition_rec pivot (ltnidx_ls H) (ord_pred j_) n'
+      partition_rec pivot (ltnidx_ls H) (ord_pred' (i := j_) (ltnm0m H)) n'
     | _, _ => fun _ => astate_ret i_
   end (erefl (i_ < j_)).
 
@@ -474,7 +475,11 @@ End Mergesort.
 End Mergesort.
 
 Require Import extraction_ocaml.
-
 Unset Extraction SafeImplicits.
+Set Extraction Flag 8175.
+
+Extraction Inline Quicksort.partition Quicksort.quicksort.
+
 Extraction "../../ocaml/quicksort.ml"
-           runt_AState runt_AState_ ordinal_finType Quicksort Mergesort.
+           nat_eqType ordinal_finType
+           runt_AState runt_AState_ Quicksort Mergesort.

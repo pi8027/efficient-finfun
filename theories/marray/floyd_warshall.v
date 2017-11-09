@@ -134,37 +134,56 @@ Definition floyd_warshall_succ (g : G) (y : T) : G :=
    let xyz := add_distance (g (x, y)) (g (y, z)) in
    if lt_distance xyz (g (x, z)) then xyz else g (x, z)].
 
-Definition floyd_warshall (g : G) : G :=
-  iterate_revfin (fun i => floyd_warshall_succ^~i) (floyd_warshall_zero g).
-
 Definition m_floyd_warshall :
   AState [:: ([finType of T * T], option nat : Type)] unit :=
   miterate_revfin (fun i _ => astate_set (i, i) (Some 0)) tt;;
   miterate_revfin (fun i _ =>
     miterate_revfin (fun j _ =>
-      miterate_revfin (fun k _ =>
-        d_ji <- astate_get (j, i);
-        d_ik <- astate_get (i, k);
-        d_jk <- astate_get (j, k);
-        let d_jik := add_distance d_ji d_ik in
-        if lt_distance d_jik d_jk
-        then astate_set (j, k) d_jik
-        else astate_ret tt
-      ) tt
+      d_ji <- astate_get (j, i);
+      if d_ji is Some dji
+      then
+        miterate_revfin (fun k _ =>
+          d_ik <- astate_get (i, k);
+          d_jk <- astate_get (j, k);
+          match d_ik, d_jk with
+            | None, _ => astate_ret tt
+            | some dik, None => astate_set (j, k) (Some (dji + dik))
+            | Some dik, Some djk =>
+              if djk <= dji + dik
+              then astate_ret tt
+              else astate_set (j, k) (Some (dji + dik))
+          end
+        ) tt
+      else astate_ret tt
     ) tt
   ) tt.
 
-Definition floyd_warshall_fast (g : G) : G :=
-  let: (_, g', _) := run_AState m_floyd_warshall (tt, g) in g'.
-
 End Floyd_Warshall.
+
+Definition floyd_warshall
+           (n : nat) (g : {ffun 'I_n * 'I_n -> option nat}) :
+  {ffun 'I_n * 'I_n -> option nat} :=
+  iterate_revfin
+    (fun i => @floyd_warshall_succ [finType of 'I_n] ^~ i)
+    (floyd_warshall_zero g).
+
+Definition floyd_warshall_fast
+           (n : nat) (g : {ffun 'I_n * 'I_n -> option nat}) :
+  {ffun 'I_n * 'I_n -> option nat} :=
+  let: (_, g', _) :=
+    run_AState (m_floyd_warshall [finType of 'I_n]) (tt, g) in
+  g'.
+
 End Floyd_Warshall.
 
 Require Import extraction_ocaml.
-
 Unset Extraction SafeImplicits.
+Set Extraction Flag 8175.
+
 Extraction Inline
+  Floyd_Warshall.add_distance Floyd_Warshall.lt_distance
+  Floyd_Warshall.floyd_warshall_zero Floyd_Warshall.floyd_warshall_succ
   Floyd_Warshall.m_floyd_warshall.
 
 Extraction "../../ocaml/floyd_warshall.ml"
-           runt_AState runt_AState_ ordinal_finType Floyd_Warshall.
+           runt_AState runt_AState_ Floyd_Warshall.

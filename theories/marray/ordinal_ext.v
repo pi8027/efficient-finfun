@@ -5,55 +5,22 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(* Ordinal *)
-
-Lemma well_founded_ordgt (n : nat) : well_founded (fun i j : 'I_n => j < i).
-Proof.
-move => i; elim: {3}n i (leq_addr i n) => [i | m IH i H];
-  first by rewrite add0n => /(leq_trans (ltn_ord i)); rewrite ltnn.
-by constructor => j H0; apply IH, (leq_trans H); rewrite addSnnS leq_add2l.
-Qed.
-
-Lemma well_founded_ordlt (n : nat) : well_founded (fun i j : 'I_n => i < j).
-Proof.
-move => i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
-by rewrite ltnS => H; constructor => j H0; apply IH, (leq_trans H0).
-Qed.
-
 Lemma fin_encode_inj (T : finType) : injective (@fin_encode T).
 Proof. by apply/can_inj/fin_encodeK. Qed.
 
 Lemma fin_decode_inj (T : finType) : injective (@fin_decode T).
 Proof. by apply/can_inj/fin_decodeK. Qed.
 
-Definition lshift' (m n : nat) (i : 'I_n) : 'I_(m + n) :=
-  @Ordinal (m + n) i (leq_trans (ltn_ord i) (leq_addl m n)).
+(* nat *)
 
-Lemma rshift'_subproof (m n : nat) (i : 'I_m) : n + i < m + n.
-Proof. by rewrite addnC ltn_add2r ltn_ord. Qed.
+Definition predn' (n : nat) (H : 0 < n) := n.-1.
 
-Definition rshift' (m n : nat) (i : 'I_m) : 'I_(m + n) :=
-  @Ordinal (m + n) (n + i) (rshift'_subproof n i).
+Definition subn' (n m : nat) (H : m <= n) := n - m.
 
-Definition ltnidx_l (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
-  @Ordinal n i (leq_trans H (ltn_ord j)).
+Lemma ltnm0m (n m : nat) : n < m -> 0 < m.
+Proof. by case: m. Qed.
 
-Definition ltnidx_ls (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n.+1 :=
-  @Ordinal n.+1 i.+1 (leq_trans H (ltn_ord j)).
-
-Lemma ltnidx_rp_subproof (n i : nat) (j : 'I_n.+1) : i < j -> j.-1 < n.
-Proof. by case: j => [] []. Qed.
-
-Definition ltnidx_rp (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
-  @Ordinal n j.-1 (ltnidx_rp_subproof H).
-
-Lemma ord_pred_subproof (n : nat) (i : 'I_n) : i.-1 < n.
-Proof. by case: i => [] [] //= i /ltnW. Qed.
-
-Definition ord_pred (n : nat) (i : 'I_n) : 'I_n :=
-  @Ordinal n i.-1 (ord_pred_subproof i).
-
-(* Extended comparison predicates. *)
+(* Extended comparison predicates *)
 
 CoInductive leq_xor_gtn' m n :
     bool -> bool -> bool -> bool ->
@@ -290,7 +257,8 @@ Ltac ssromega :=
   repeat arith_pop;
   do ?replace_minn_maxn;
   try done;
-  do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec in *;
+  do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec,
+             predn', subn' in *;
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
   simpl Equality.sort in *;
@@ -340,3 +308,51 @@ Goal forall m n, minn m n + maxn m n = m + n. ssromega. Qed.
 Goal forall m n, minn m n + (m - n) = m. ssromega. Qed.
 Goal forall m n, maxn m n - (n - m) = m. ssromega. Qed.
 End ssromega_test.
+
+(* Ordinal *)
+
+Lemma well_founded_ordgt (n : nat) : well_founded (fun i j : 'I_n => j < i).
+Proof.
+move => i; elim: {3}n i (leq_addr i n) => [i | m IH i H];
+  first by rewrite add0n => /(leq_trans (ltn_ord i)); rewrite ltnn.
+by constructor => j H0; apply IH, (leq_trans H); rewrite addSnnS leq_add2l.
+Qed.
+
+Lemma well_founded_ordlt (n : nat) : well_founded (fun i j : 'I_n => i < j).
+Proof.
+move => i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
+by rewrite ltnS => H; constructor => j H0; apply IH, (leq_trans H0).
+Qed.
+
+Definition lshift' (m n : nat) (i : 'I_n) : 'I_(m + n) :=
+  @Ordinal (m + n) i (leq_trans (ltn_ord i) (leq_addl m n)).
+
+Lemma rshift'_subproof (m n : nat) (i : 'I_m) : n + i < m + n.
+Proof. by rewrite addnC ltn_add2r ltn_ord. Qed.
+
+Definition rshift' (m n : nat) (i : 'I_m) : 'I_(m + n) :=
+  @Ordinal (m + n) (n + i) (rshift'_subproof n i).
+
+Definition ltnidx_l (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
+  @Ordinal n i (leq_trans H (ltn_ord j)).
+
+Definition ltnidx_ls (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n.+1 :=
+  @Ordinal n.+1 i.+1 (leq_trans H (ltn_ord j)).
+
+Lemma ltnidx_rp_subproof1 (n i : nat) (j : 'I_n.+1) : i < j -> 0 < j.
+Proof. by case: j => [] []. Qed.
+
+Lemma ltnidx_rp_subproof2 (n i : nat) (j : 'I_n.+1) : i < j -> j.-1 < n.
+Proof. by case: j => [] []. Qed.
+
+Definition ltnidx_rp (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
+  @Ordinal n (@predn' j (ltnidx_rp_subproof1 H)) (ltnidx_rp_subproof2 H).
+
+Lemma ord_pred_subproof (n : nat) (i : 'I_n) : i.-1 < n.
+Proof. by case: i => [] [] //= i /ltnW. Qed.
+
+Definition ord_pred (n : nat) (i : 'I_n) : 'I_n :=
+  @Ordinal n i.-1 (ord_pred_subproof i).
+
+Definition ord_pred' (n : nat) (i : 'I_n) (H : 0 < i) : 'I_n :=
+  @Ordinal n (@predn' i H) (ord_pred_subproof i).

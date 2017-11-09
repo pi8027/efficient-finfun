@@ -319,12 +319,3 @@ congr (tt, _, tt); apply/ffunP => k;
 Qed.
 
 Global Opaque swap.
-
-(*
-Print Finite.class_of.
-  Print Choice.class_of.
-    Print Equality.mixin_of.
-    Print Choice.mixin_of.
-  Print Finite.mixin_of.
-    Print Countable.mixin_of.
-*)

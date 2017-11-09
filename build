@@ -65,7 +65,7 @@ pushd ocaml
     -tag 'inline_max_depth(1)' \
     -tag 'inlining_report' \
     presburger_main.native
-  
+
   echo 'module Presburger = Presburger_after;;' > def.ml
   ocamlbuild -build-dir _after \
     -tag 'optimize(3)' \
@@ -74,45 +74,16 @@ pushd ocaml
     -tag 'inline_max_depth(1)' \
     -tag 'inlining_report' \
     presburger_main.native
-  
-  ocamlbuild -build-dir _matrix \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    matrix_main.native
-  ocamlbuild -build-dir _matrix \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    -ocamlc ocamlcp matrix_main.byte
 
-  ocamlbuild -build-dir _wuf \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    wuf_main.native
-
-  ocamlbuild -build-dir _quicksort \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    quicksort_main.native
-
-  ocamlbuild -build-dir _floyd_warshall \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    floyd_warshall_main.native
-  #ocamlbuild -build-dir _floyd_warshall -ocamlc ocamlcp floyd_warshall_main.byte
+  for f in matrix wuf quicksort floyd_warshall; do
+    ocamlbuild -build-dir _$f \
+      -tag 'optimize(3)' \
+      -tag 'remove_unused_arguments' \
+      -tag 'unbox_closures' \
+      -tag 'inline_max_depth(1)' \
+      -tag 'inlining_report' \
+      ${f}_main.native
+    ocamlbuild -build-dir _$f -ocamlc ocamlcp ${f}_main.byte
+  done
 
 popd # ocaml

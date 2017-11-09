@@ -1,158 +1,32 @@
 From mathcomp Require Import all_ssreflect all_algebra.
 Require Import ordinal_ext core.
+Require Extraction.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(* Set Extraction Conservative Types. *)
-Extraction Language Ocaml.
-
-(* unit *)
-
-Extract Inductive unit => "unit" [" () "].
-
-(* bool *)
-
-Extract Inductive bool => "bool" ["true" "false"].
-
-Extract Inductive reflect => "bool" ["true" "false"].
-
-Extract Inductive
-  Equality.mixin_of => "rel" ["fst"] "(fun f eq -> f eq eq)".
-
-(* prod *)
-
-Extract Inductive prod => "( * )" ["(,)"].
-
-(* list *)
-
-Extract Inductive list => "list" ["[]" "(::)"].
+Load "../extraction_common.v".
 
 (* nat *)
 
-Extract Inductive
-  nat => "int"
-           ["0" "succ"]
-           "(fun zero succ n -> if n = 0 then zero () else succ (n - 1))".
+Extract Inlined Constant predn' => "(* predn' *)pred".
 
-Extract Inlined Constant predn => "(fun n -> if n = 0 then 0 else n - 1)".
-
-Extract Inlined Constant eqn => "(fun n m -> n = m)".
-
-Extract Inlined Constant addn_rec => "(+)".
-Extract Inlined Constant addn => "(+)".
-
-Extract Inlined Constant muln_rec => "( * )".
-Extract Inlined Constant muln => "( * )".
-
-Extract Inlined Constant subn_rec => "(fun n m -> if m <= n then n - m else 0)".
-Extract Inlined Constant subn => "(fun n m -> if m <= n then n - m else 0)".
-
-Extract Inlined Constant leq => "(<=)".
-
-Extract Inlined Constant maxn => "max".
-
-Extract Inlined Constant minn => "min".
-
-Extract Inlined Constant nat_of_bool => "(fun b -> if b then 1 else 0)".
-
-Extract Inlined Constant odd => "(fun n -> n mod 2 = 1)".
-
-Extract Inlined Constant double_rec => "(fun n -> 2 * n)".
-Extract Inlined Constant double => "(fun n -> 2 * n)".
-
-Extract Inlined Constant edivn =>
-  "(fun n m -> if m = 0 then Pair (0, n) else Pair (n / m, n mod m))".
-
-Extract Inlined Constant divn => "(fun n m -> if m = 0 then 0 else n / m)".
-
-Extract Inlined Constant modn => "(fun n m -> if m = 0 then n else n mod m)".
+Extract Inlined Constant subn' => "(* subn' *)(-)".
 
 (* ordinal *)
 
-Extraction Implicit nat_of_ord [n].
-Extract Inlined Constant nat_of_ord => "(* nat_of_ord *)".
+Extraction Inline
+  lshift' rshift' ltnidx_l ltnidx_ls ltnidx_rp ord_pred ord_pred'.
 
-Extraction Implicit cast_ord [n m].
-Extract Inlined Constant cast_ord => "(* cast_ord *)".
+(* finTypes *)
 
 Extraction Inline
-  ord0 ord_max lshift' rshift' ltnidx_l ltnidx_ls ltnidx_rp ord_pred.
-
-(* int *)
-
-Extract Inductive
-  int => "int"
-           ["" "(fun n -> - (n + 1))"]
-           "(fun pos neg n -> if 0 <= n then pos n else neg (- (n + 1)))".
-
-Extract Inlined Constant intZmod.addz => "(+)".
-
-Extract Inlined Constant intZmod.oppz => "(~-)".
-
-Extract Inlined Constant intRing.mulz => "( * )".
-
-Extract Inlined Constant absz => "abs".
-
-Extract Inlined Constant intOrdered.lez => "(<=)".
-
-Extract Inlined Constant intOrdered.ltz => "(<)".
-
-(* function types *)
-
-Extract Inductive simpl_fun => "( -> )" [""] "".
-
-Extract Inductive mem_pred => "pred" [""] "".
-
-Extract Inlined Constant SimplPred => "".
-
-Extract Inlined Constant fun_of_simpl => "".
-
-Extract Inlined Constant pred_of_simpl => "".
-
-(* tuple and finfun *)
-
-Extract Inductive
-  tuple_of => "array"
-                ["Array.of_list"]
-                "(fun f t -> f (Array.to_list t))".
-
-Extraction Implicit tnth [n].
-Extract Constant tnth => "Array.get". (*"(fun t i -> t.(i))"*)
-
-(*
-Extract Constant map_tuple => "(fun _ f t -> Array.map f t)".
-
-Extract Constant ord_tuple => "(fun n -> Array.init n (fun n' -> n'))".
-*)
-
-Extract Constant codom_tuple =>
-  "(fun t f ->
-     Array.init
-     t.Finite.mixin.Finite.mixin_card
-     (fun i -> f (t.Finite.mixin.Finite.mixin_decode i)))".
-
-Extraction Inline
-  fin_encode fin_decode fun_of_fin finfun fgraph
+  fin_encode fin_decode
   Finite.mixin_base Finite.mixin_card Finite.mixin_encode Finite.mixin_decode
   Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone
   Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
-  ordinal_finType ordinal_finMixin ordinal_countType ordinal_countMixin
-  ordinal_choiceType ordinal_choiceMixin ordinal_eqType ordinal_eqMixin
-  prod_finType prod_finMixin prod_countType prod_countMixin
-  prod_choiceType prod_choiceMixin prod_eqType prod_eqMixin
-  prod_fin_encode.
-
-(* avoiding extractor bugs: type mismatch, assertion failure, etc. *)
-
-Extract Constant SetDef.pred_of_set =>
-  "(fun t a -> Obj.magic FunFinfun.fun_of_fin
-                 t ((set_subType t).val0 (Obj.magic a)))".
-
-Extract Constant Finite.base2 =>
-  "(fun c -> { Countable.base = c.base;
-               Countable.mixin = (Obj.magic mixin_base __ c.mixin) })".
+  prod_fin_encode prod_fin_decode finfun_fin_encode finfun_fin_decode.
 
 (* array state monad *)
 
@@ -163,11 +37,11 @@ Extraction Implicit astate_GET [Ix sig].
 Extraction Implicit astate_SET [Ix sig].
 
 Extract Inductive AState => "runt_AState_"
-  [" (fun a s -> a)"
-   " (function (f, g) -> fun s -> let r = f s in g r s)"
-   " (fun f s -> f (Obj.magic fst s))"
-   " (fun i s -> (Obj.magic snd s).(i))"
-   " (function (i, x) -> fun s -> (Obj.magic snd s).(i) <- x)"]
+  [(* return *) " (fun a s -> a)"
+   (* bind *)   " (fun (f, g) s -> let r = f s in g r s)"
+   (* lift *)   " (fun f s -> let (ss, _) = Obj.magic s in f ss)"
+   (* get *)    " (fun i s -> let (_, s1) = Obj.magic s in s1.(i))"
+   (* set *)    " (fun (i, x) s -> let (_, s1) = Obj.magic s in s1.(i) <- x)"]
   "(* It is not permitted to use AState_rec in extracted code. *)".
 Extract Type Arity AState 1.
 
@@ -175,20 +49,11 @@ Extract Inlined Constant astate_ret => "(fun a s -> a)".
 Extract Inlined Constant astate_bind =>
   "(fun f g s -> let r = f s in g r s)".
 Extract Inlined Constant astate_lift =>
-  "(fun f s -> f (Obj.magic fst s))".
+  "(fun f s -> let (ss, _) = Obj.magic s in f ss)".
 Extract Inlined Constant astate_GET =>
-  "(fun i s -> (Obj.magic snd s).(i))".
+  "(fun i s -> let (_, s1) = Obj.magic s in s1.(i))".
 Extract Inlined Constant astate_SET =>
-  "(fun i x s -> (Obj.magic snd s).(i) <- x)".
-
-(*
-Extract Inductive AState => "runt_AState_"
-  [(* return *) " (fun a s -> a)"
-   (* bind *)   " (function (f, g) -> fun s -> let r = f s in g r s)"
-   (* lift *)   " (fun f s -> f (Obj.magic fst s))"
-   (* get *)    " (fun i s -> (Obj.magic snd s).(i))"
-   (* set *)    " (function (i, x) -> fun s -> (Obj.magic snd s).(i) <- x)"] "".
-*)
+  "(fun i x s -> let (_, s1) = Obj.magic s in s1.(i) <- x)".
 
 Extract Constant run_AState =>
   "(fun sign f s ->
@@ -200,9 +65,7 @@ Extract Constant run_AState =>
     let s' = copy sign s in
     let r = Obj.magic f s' in (s', r))".
 
-Extraction Implicit miterate_revord [sig n].
-Extraction Implicit miterate_revfin [sig].
-Extraction Implicit miterate_fin [sig].
-
 Extraction Inline
-  AState_monadType iterate_revfin iterate_fin miterate_revfin miterate_fin.
+  AState_monadType swap
+  iterate_revord iterate_fin iterate_revfin
+  miterate_revord miterate_fin miterate_revfin.
