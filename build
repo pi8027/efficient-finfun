@@ -57,23 +57,17 @@ end
 
 pushd ocaml
 
-  echo 'module Presburger = Presburger_before;;' > def.ml
-  ocamlbuild -build-dir _before \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    presburger_main.native
-
-  echo 'module Presburger = Presburger_after;;' > def.ml
-  ocamlbuild -build-dir _after \
-    -tag 'optimize(3)' \
-    -tag 'remove_unused_arguments' \
-    -tag 'unbox_closures' \
-    -tag 'inline_max_depth(1)' \
-    -tag 'inlining_report' \
-    presburger_main.native
+  for f in before after; do
+    echo "module Presburger = Presburger_$f;;" > def.ml
+    ocamlbuild -build-dir _presburger_$f \
+      -tag 'optimize(3)' \
+      -tag 'remove_unused_arguments' \
+      -tag 'unbox_closures' \
+      -tag 'inline_max_depth(1)' \
+      -tag 'inlining_report' \
+      presburger_main.native
+    ocamlbuild -build-dir _presburger_$f -ocamlc ocamlcp presburger_main.byte
+  done
 
   for f in matrix wuf quicksort floyd_warshall; do
     ocamlbuild -build-dir _$f \

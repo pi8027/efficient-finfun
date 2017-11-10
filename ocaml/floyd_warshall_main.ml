@@ -45,13 +45,8 @@ for i_ = 0 to i_max - 1 do
     let (time2, res2) = benchmark (fun n -> FW.floyd_warshall n) in
     let (time3, res3) = benchmark (fun n -> FW.floyd_warshall_fast n) in
     assert (res1 = res2); assert (res1 = res3);
-    print_endline
-      ("[" ^ string_of_int i ^ ", " ^ string_of_int j ^ "] "
-       ^ "ocaml: "  ^ Utils.string_of_float time1 ^ ", "
-       ^ "pure: "   ^ Utils.string_of_float time2 ^ ", "
-       ^ "impure: " ^ Utils.string_of_float time3 ^ ", "
-       (* ^ "ratio: "  ^ Utils.string_of_float (time2 /. time1) *)
-      )
+    Printf.printf
+      "[%d, %d] ocaml: %f, coq-pure: %f, coq-impure: %f\n" i j time1 time2 time3
   done
 done
 ;;

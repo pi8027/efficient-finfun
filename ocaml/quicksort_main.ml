@@ -66,15 +66,11 @@ for i_ = 0 to i_max - 1 do
     assert (res1 = res3);
     assert (res1 = res4);
     assert (res1 = Array.of_list res5);
-    print_endline
-      ("[" ^ string_of_int i ^ ", " ^ string_of_int j ^ "] "
-       ^ "Array.stable_sort-ocaml: " ^ Utils.string_of_float (1000. *. time1) ^ ", "
-       ^ "Array.sort-ocaml: "        ^ Utils.string_of_float (1000. *. time2) ^ ", "
-       ^ "Quicksort-ocaml: "         ^ Utils.string_of_float (1000. *. time3) ^ ", "
-       ^ "Quicksort-coq: "           ^ Utils.string_of_float (1000. *. time4) ^ ", "
-       ^ "Mergesort-coq: "           ^ Utils.string_of_float (1000. *. time5) ^ ", "
-       (* ^ "ratio: "  ^ Utils.string_of_float (time2 /. time1) *)
-      )
+    Printf.printf
+      "[%d, %d] Array.stable_sort-o: %f, Array.sort-o: %f, Quicksort-o: %f, \
+                Quicksort-c: %f, Mergesort-c: %f\n"
+      i j (1000. *. time1) (1000. *. time2) (1000. *. time3) (1000. *. time4)
+      (1000. *. time5)
   done
 done
 ;;

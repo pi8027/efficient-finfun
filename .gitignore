@@ -1,4 +1,11 @@
 *.vo
 *.glob
 *.aux
+.deps
+.lia.cache
+ocaml/*.ml
+ocaml/*.mli
+!ocaml/utils.ml
+!ocaml/*_main.ml
+ocaml/_*/
 theories/*/_CoqProject

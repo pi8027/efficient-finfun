@@ -141,19 +141,10 @@ for i_ = 0 to i_max - 1 do
     let (time6, res6) = benchmark (uftest1 union_rank find_halve) in
     *)
     let (time7, res7) = benchmark uftest2 in
-    (* assert (res1 = res7); *)
-    print_endline
-      ("[" ^ string_of_int i ^ ", " ^ string_of_int j ^ "] " ^
-       "ocaml[wc]: " ^ Utils.string_of_float time1 ^ ", " ^
-       (*
-       "ocaml[ws]: " ^ Utils.string_of_float time2 ^ ", " ^
-       "ocaml[wh]: " ^ Utils.string_of_float time3 ^ ", " ^
-       "ocaml[rc]: " ^ Utils.string_of_float time4 ^ ", " ^
-       "ocaml[rs]: " ^ Utils.string_of_float time5 ^ ", " ^
-       "ocaml[rh]: " ^ Utils.string_of_float time6 ^ ", " ^
-       *)
-       "coq[wc]: " ^ Utils.string_of_float time7 ^ ", " ^
-       "ratio: " ^ Utils.string_of_float (time7 /. time1))
+    assert (res1 = res7);
+    Printf.printf
+      "[%d, %d] ocaml[wc]: %f, coq[wc]: %f, ratio: %f\n"
+      i j time1 time7 (time7 /. time1)
   done
 done
 ;;

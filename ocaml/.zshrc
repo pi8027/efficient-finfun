@@ -24,10 +24,10 @@ setopt hist_ignore_all_dups
 tmux setw remain-on-exit on
 
 base=$(cd $(dirname $0); pwd)
-before=$(tmux split-window -h         -dPF \
-           '#{pane_id}' "echo before; rlwrap ./_before/presburger_main.native")
-after=$( tmux split-window -t $before -dPF \
-           '#{pane_id}' "echo after; rlwrap ./_after/presburger_main.native")
+before=$(tmux split-window -h         -dPF '#{pane_id}' \
+           'echo before; rlwrap ./_presburger_before/presburger_main.native')
+after=$( tmux split-window -t $before -dPF '#{pane_id}' \
+           'echo after; rlwrap ./_presburger_after/presburger_main.native')
 
 send(){
     tmux send-keys -t $before "$@"
