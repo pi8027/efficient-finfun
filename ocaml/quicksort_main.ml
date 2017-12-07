@@ -16,7 +16,7 @@ let gen_list s elems =
 
 let quicksort (cmp : 'a -> 'a -> bool) (arr : 'a array) : unit =
   let rec quicksort_rec (i : int) (j : int) : unit =
-    if j <= i then () else begin
+    if i < j then begin
     let pivot = arr.(i) in
     let i' = ref (i + 1) in
     let j' = ref j in
@@ -26,7 +26,6 @@ let quicksort (cmp : 'a -> 'a -> bool) (arr : 'a array) : unit =
       if !i' < !j'
       then let t = arr.(!i') in
            arr.(!i') <- arr.(!j'); arr.(!j') <- t; partition ()
-      else ()
     in
     partition ();
     arr.(i) <- arr.(!j');
@@ -38,7 +37,7 @@ let quicksort (cmp : 'a -> 'a -> bool) (arr : 'a array) : unit =
 ;;
 
 let i_max = 100 in
-let j_max = 3 in
+let j_max = 1 in
 let seeds = Array.init (i_max * j_max) (fun _ -> Random.bits ()) in
 for i_ = 0 to i_max - 1 do
   let i = (i_ + 1) * 1000 in
@@ -67,8 +66,8 @@ for i_ = 0 to i_max - 1 do
     assert (res1 = res4);
     assert (res1 = Array.of_list res5);
     Printf.printf
-      "[%d, %d] Array.stable_sort-o: %f, Array.sort-o: %f, Quicksort-o: %f, \
-                Quicksort-c: %f, Mergesort-c: %f\n"
+      "[%6d, %d] Array.stable_sort-o: %6.3f, Array.sort-o: %6.3f, \
+                 Quicksort-o: %6.3f, Quicksort-c: %6.3f, Mergesort-c: %6.3f%!\n"
       i j (1000. *. time1) (1000. *. time2) (1000. *. time3) (1000. *. time4)
       (1000. *. time5)
   done

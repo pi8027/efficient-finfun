@@ -1,5 +1,4 @@
-Require Import Omega Psatz.
-From mathcomp Require Import all_ssreflect.
+Require Import all_ssreflect Omega Psatz.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

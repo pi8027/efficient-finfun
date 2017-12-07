@@ -44,7 +44,7 @@ foreach dir (math-comp-orig math-comp-mod)
 pushd $dir/mathcomp
   envset $dir
   make clean
-  make -j 8 ssreflect/all_ssreflect.vo fingroup/all_fingroup.vo algebra/all_algebra.vo
+  make -j 8 #ssreflect/all_ssreflect.vo fingroup/all_fingroup.vo algebra/all_algebra.vo
 popd
 end
 

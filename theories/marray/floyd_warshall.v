@@ -1,5 +1,4 @@
-From mathcomp Require Import all_ssreflect.
-Require Import core.
+Require Import all_ssreflect core.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -140,21 +139,16 @@ Definition m_floyd_warshall :
   miterate_revfin (fun i _ =>
     miterate_revfin (fun j _ =>
       d_ji <- astate_get (j, i);
-      if d_ji is Some dji
-      then
-        miterate_revfin (fun k _ =>
-          d_ik <- astate_get (i, k);
-          d_jk <- astate_get (j, k);
-          match d_ik, d_jk with
-            | None, _ => astate_ret tt
-            | some dik, None => astate_set (j, k) (Some (dji + dik))
-            | Some dik, Some djk =>
-              if djk <= dji + dik
-              then astate_ret tt
-              else astate_set (j, k) (Some (dji + dik))
-          end
-        ) tt
-      else astate_ret tt
+      if d_ji isn't Some dji then astate_ret tt else
+      miterate_revfin (fun k _ =>
+        d_ik <- astate_get (i, k);
+        if d_ik isn't Some dik then astate_ret tt else
+        d_jk <- astate_get (j, k);
+        if d_jk isn't Some djk then astate_set (j, k) (Some (dji + dik))
+        else if djk <= dji + dik
+             then astate_ret tt
+             else astate_set (j, k) (Some (dji + dik))
+      ) tt
     ) tt
   ) tt.
 
@@ -186,4 +180,4 @@ Extraction Inline
   Floyd_Warshall.m_floyd_warshall.
 
 Extraction "../../ocaml/floyd_warshall.ml"
-           runt_AState runt_AState_ Floyd_Warshall.
+           Sign runt_AState runt_AState_ Floyd_Warshall.

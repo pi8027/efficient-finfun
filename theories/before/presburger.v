@@ -1,5 +1,4 @@
-From mathcomp Require Import all_ssreflect all_algebra.
-Require Import automata.
+Require Import all_ssreflect all_algebra automata.
 Import GRing.Theory Num.Theory.
 
 (******************************************************************************)

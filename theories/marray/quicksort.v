@@ -1,6 +1,4 @@
-From Coq Require Import Wf_nat.
-From mathcomp Require Import all_ssreflect fingroup perm.
-Require Import core ordinal_ext.
+Require Import all_ssreflect fingroup perm core ordinal_ext Wf_nat.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -116,14 +114,14 @@ Fixpoint partition_rec (pivot : A) (i j : 'I_#|I|.+1) (n : nat) :
   j_ <- down_search (xpredC (cmp pivot)) j i;
   match n, i_ < j_ as cij return i_ < j_ = cij -> _ with
     | n'.+1, true => fun H : i_ < j_ =>
-      swap (ltnidx_l H) (ltnidx_rp H);;
+      SWAP (ltnidx_l H) (ltnidx_rp H);;
       partition_rec pivot (ltnidx_ls H) (ord_pred' (i := j_) (ltnm0m H)) n'
     | _, _ => fun _ => astate_ret i_
   end (erefl (i_ < j_)).
 
-Definition partition (pivot : A) (i j : 'I_#|I|.+1) :
+Definition partition (pivot : A) (i j : 'I_#|I|.+1) (H : i <= j) :
   AState [:: (I, A)] 'I_#|I|.+1 :=
-  partition_rec pivot i j (j - i).
+  partition_rec pivot i j (@subn' j i H).
 
 CoInductive partition_spec
             (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
@@ -136,12 +134,12 @@ CoInductive partition_spec
   (forall ix : 'I_#|I|, k <= ix < j -> cmp pivot (arr' (fin_decode ix))) ->
   partition_spec pivot i j arr (tt, arr', k).
 
-Lemma run_partition (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
-  i <= j ->
-  partition_spec pivot i j arr (run_AState (partition pivot i j) (tt, arr)).
+Lemma run_partition
+      (pivot : A) (i j : 'I_#|I|.+1) (Hij : i <= j) (arr : {ffun I -> A}) :
+  partition_spec pivot i j arr (run_AState (partition pivot Hij) (tt, arr)).
 Proof.
-rewrite /partition => H.
-have {H}: i <= j <= j - i + i by rewrite H /= subnK.
+rewrite /partition /subn'.
+have {Hij}: i <= j <= j - i + i by rewrite Hij /= subnK.
 have Hid_arr (arr' : {ffun I -> A}):
   arr' = [ffun ix => arr' ((1%g : {perm I}) ix)]
   by apply/ffunP => ix; rewrite ffunE permE.
@@ -161,7 +159,7 @@ move: (j - i) => n; elim: n i j arr => /= [| n IH] i j arr.
       constructor; rewrite ?(leq_trans Hj_ Hji_) ?Hi_' ?perm_on1 // => ix;
       rewrite ?ffunE permE //; auto => /andP [] H1 H2;
       move: (Hdown' ix); rewrite (leq_trans Hji_ H1) H2 negbK => ->.
-  move => Hij_ /=; rewrite run_swap.
+  move => Hij_ /=; rewrite run_SWAP.
   have Hij_': i_.+1 < j_.
     move: Hij_; rewrite leq_eqVlt => /orP [] // /eqP Hij_.
     have H1: i_ < #|I| by rewrite Hij_ -ltnS ltn_ord.
@@ -222,10 +220,11 @@ Fixpoint quicksort_rec (i j : 'I_#|I|.+1) (n : nat) :
       let i' := ltnidx_l (ltnW H) in
       let si := ltnidx_ls (ltnW H) in
       pivot <- astate_GET i';
-      k <- partition pivot si j;
+      k <- @partition pivot si j (ltnW H);
       let pk := ord_pred k in
-      let pk' := @Ordinal #|I| k.-1 (quicksort_rec_subproof k (ltnW H)) in
-      swap i' pk';; quicksort_rec i pk n';; quicksort_rec k j n'
+      let pk' := @Ordinal #|I| pk (quicksort_rec_subproof k (ltnW H)) in
+      SWAP i' pk';;
+      quicksort_rec i pk n';; quicksort_rec k j n'
     | _, _ => fun _ => astate_ret tt
   end (erefl (i.+1 < j)).
 
@@ -252,8 +251,7 @@ case: {2 3}(i.+1 < j) (erefl (i.+1 < j));
   last by move/negbT; rewrite -leqNgt => H0; exists 1%g;
     rewrite ?Hid_arr ?perm_on1; split => // ix ix'; rewrite -ltnS => H1 H2 H3;
     move/(leq_trans H1)/(leq_trans H0)/(leq_trans H3): H2; rewrite ltnn.
-rewrite -/(is_true _) => /= H0; case: run_partition; first by apply ltnW.
-move => /= ppart k' H1.
+rewrite -/(is_true _) => /= H0; case: run_partition => /= ppart k' H1.
 set k := Ordinal (quicksort_rec_subproof _ _).
 have Hk: k' = (@Ordinal #|I|.+1 k.+1 (ltn_ord k))
   by apply/ord_inj => /=; case: (nat_of_ord k') H1.
@@ -264,7 +262,7 @@ have ->:
   Ordinal (leqW (ltn_ord k)) by apply/ord_inj => /=.
 set k' := Ordinal (leqW (ltn_ord k)).
 set sk := @Ordinal #|I|.+1 k.+1 (ltn_ord k).
-rewrite run_swap => H1 Hpart1 Hpart2 Hpart3.
+rewrite run_SWAP => H1 Hpart1 Hpart2 Hpart3.
 set arr' := [ffun _ => _].
 have {arr'} ->:
   arr' = [ffun ix => arr (ppart (tperm (fin_decode i') (fin_decode k) ix))]
@@ -388,14 +386,6 @@ Fixpoint merge_pair xs :=
     | (x :: x' :: xs) => merge x x' :: merge_pair xs
   end.
 
-Fixpoint mergesort' xs n :=
-  if n is n.+1
-    then (if xs is [:: x] then x else mergesort' (merge_pair xs) n)
-    else [::].
-
-Definition mergesort (xs : seq A) : seq A :=
-  mergesort' (map (fun x => [:: x]) xs) (size xs).
-
 Fixpoint list2_rec (A : Type) (P : seq A -> Set)
   (c1 : P [::]) (c2 : forall x, P [:: x])
   (c3 : forall x x' xs, P xs -> P [:: x, x' & xs]) (xs : seq A) : P xs :=
@@ -405,8 +395,28 @@ Fixpoint list2_rec (A : Type) (P : seq A -> Set)
     | [:: x, x' & xs] => c3 x x' xs (list2_rec c1 c2 c3 xs)
   end.
 
-Lemma merge_pair_decreasing xs : size (merge_pair xs) <= size xs.
-Proof. by elim/list2_rec: xs => //= _ _ xs H; rewrite ltnS; apply leqW. Qed.
+Lemma merge_pair_leq xs : size (merge_pair xs) <= (size xs).
+Proof. by elim/list2_rec: xs => //= _ _ xs /leqW; rewrite ltnS. Qed.
+
+Lemma Acc_ltsize T : well_founded (fun (x y : seq T) => size x < size y).
+Proof.
+move => xs.
+elim: {xs} (size xs) {1 3}xs (leqnn (size xs)) => [[] // |] n IH xs H.
+constructor => ys /(fun H0 => leq_trans H0 H) {H}; rewrite ltnS.
+apply IH.
+Qed.
+
+Definition mergesort (xs : seq A) : seq A :=
+  Fix (@Acc_ltsize (seq A)) (fun _ => seq A)
+    (fun xss : seq (seq A) =>
+      match xss return (forall yss, size yss < size xss -> seq A) -> seq A with
+        | [::] => fun _ => [::]
+        | [:: xs] => fun _ => xs
+        | (xs :: xs' :: xss') as xss =>
+          fun (H : forall yss, size yss <= (size xss').+1 -> seq A) =>
+            H (merge_pair xss) (merge_pair_leq xss')
+      end)
+  (map (fun x => [:: x]) xs).
 
 Fixpoint sorted' x xs :=
   if xs is x' :: xs then cmp x x' && sorted' x' xs else true.
@@ -420,19 +430,16 @@ Proof. by case: xs. Qed.
 Theorem mergesort_sorted (xs : seq A) :
   (forall x y, ~ cmp x y -> cmp y x) -> sorted (mergesort xs).
 Proof.
-rewrite /mergesort => asym.
-set xs' := map _ _.
-have H: all sorted xs' by rewrite {}/xs'; elim: xs.
-have H0: size xs' <= size xs by rewrite /xs' size_map.
-elim: {xs} (size xs) xs' H0 H => //= n IH []; first by move => _ _; apply IH.
-move => x [] //; first by move => _ /andP [].
-move => x' xs H H0; apply: IH;
-  first by rewrite /=; apply leq_ltn_trans with (size xs) => //;
-             apply merge_pair_decreasing.
-move: H0; rewrite -/(merge_pair (x :: x' :: xs)).
-elim/list2_rec: {n x x' xs H} [:: _, _ & _] =>
-  //= x x' xs IH /and3P [H H0 H1]; rewrite {}IH // andbT.
-elim: x x' H H0 {xs H1} => // x xs IHx;
+rewrite /mergesort /Fix => asym.
+set xss := map _ _.
+have H: all sorted xss by rewrite {}/xss; elim: xs.
+move: (Acc_ltsize _) => Hi.
+elim/Acc_ind: xss / Hi (Hi) H => {xs} -[| xs [| xs' xss]] _ IH Hi;
+  rewrite -Fix_F_eq //; first by rewrite /= andbT.
+move => H; apply IH; first by rewrite !ltnS merge_pair_leq.
+elim/list2_rec: {xs xs' xss H Hi IH} [:: _, _ & _] H =>
+  //= xs xs' xss IH /and3P [H H0 H1]; rewrite {}IH // andbT.
+elim: xs xs' H H0 {xss H1} => // x xs IHx;
   elim => // y ys IHy H H0 /=; case: ifP => H1.
 - move: H; rewrite !sortedE => /andP [H2 H3]; rewrite IHx // andbT.
   by case: xs H2 {IHx IHy H3} => //= x' xs; case: ifP.
@@ -444,21 +451,17 @@ Qed.
 
 Theorem mergesort_perm (xs : seq A) : perm_eq xs (mergesort xs).
 Proof.
-rewrite /mergesort.
-set xs' := map _ _.
-have {1}->: xs = flatten xs' by rewrite {}/xs'; elim: xs => //= x xs {1}->.
-have H0: size xs' <= size xs by rewrite /xs' size_map.
-elim: {xs} (size xs) xs' H0; first by case => //= _.
-move => n IH []; first by move => _ /=; elim: n {IH} => //=.
-move => x xs; rewrite /size ltnS -/size; case: xs => //;
-  first by rewrite /= cats0.
-move => x' xs H.
-apply perm_eq_trans with (flatten (merge_pair (x :: x' :: xs)));
-  last by apply IH => /=; apply leq_ltn_trans with (size xs) => //;
-          apply merge_pair_decreasing.
-elim/list2_rec: {n x x' xs IH H} [:: _, _ & _] => //= x x' xs; rewrite catA.
-rewrite -(perm_cat2l (x ++ x')); move/perm_eqlP => ->; rewrite perm_cat2r.
-elim: x x' {xs} => // x xs IHx; elim; first by rewrite cats0.
+rewrite /mergesort /Fix.
+set xss := map _ _.
+have {1}->: xs = flatten xss by rewrite {}/xss; elim: xs => //= x xs {1}->.
+move: (Acc_ltsize _) => Hi.
+elim/Acc_ind: xss / Hi (Hi) => {xs} -[| xs [| xs' xss]] _ IH Hi;
+  rewrite -Fix_F_eq //; first by rewrite /= cats0.
+apply perm_eq_trans with (flatten (merge_pair (xs :: xs' :: xss)));
+  last by apply IH; rewrite /= !ltnS merge_pair_leq.
+elim/list2_rec: {xs xs' xss IH Hi} [:: _, _ & _] => //= xs xs' xss.
+rewrite catA -(perm_cat2l (xs ++ xs')) => /perm_eqlP ->; rewrite perm_cat2r.
+elim: xs xs' {xss} => // x xs IHx; elim; first by rewrite cats0.
 move => y ys IHy /=; case: ifP => _.
 - rewrite (perm_cat2l [:: x]); apply IHx.
 - rewrite (perm_catCA (x :: xs) [:: y] ys) /= (perm_cat2l [:: y]); apply IHy.
@@ -478,8 +481,12 @@ Require Import extraction_ocaml.
 Unset Extraction SafeImplicits.
 Set Extraction Flag 8175.
 
-Extraction Inline Quicksort.partition Quicksort.quicksort.
+Extraction Implicit Quicksort.partition_rec [I].
+Extraction Implicit Quicksort.partition [I].
+Extraction Implicit Quicksort.quicksort_rec [I].
+
+Extraction Inline up_search down_search Quicksort.partition Quicksort.quicksort.
 
 Extraction "../../ocaml/quicksort.ml"
            nat_eqType ordinal_finType
-           runt_AState runt_AState_ Quicksort Mergesort.
+           Sign runt_AState runt_AState_ Quicksort Mergesort.

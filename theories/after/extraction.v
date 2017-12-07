@@ -1,5 +1,4 @@
-From mathcomp Require Import all_ssreflect all_algebra.
-Require Import presburger.
+Require Import all_ssreflect all_algebra presburger.
 Require Extraction.
 
 Set Implicit Arguments.
@@ -21,7 +20,7 @@ Extraction Inline
   Finite.mixin_base Finite.mixin_card Finite.mixin_encode Finite.mixin_decode
   Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone
   Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
-  finfun_fin_encode finfun_fin_decode.
+  prod_fin_encode prod_fin_decode finfun_fin_encode finfun_fin_decode.
 
 (* automata *)
 

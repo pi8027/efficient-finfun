@@ -65,15 +65,14 @@ let uftest1
 ;;
 
 let uftest2 (a : ufarray) elems n m =
-  let indices_type = Wuf.ordinal_finType elems in
   let pick () = Obj.magic (Random.int elems) in
   let a' = Obj.magic ((), a) in
   for i = 1 to n do
     let x = pick () in let y = pick () in
-    Wuf.WUF.munion indices_type x y a'
+    Wuf.WUF.munion n x y a'
   done;
   for j = 1 to m do
-    let x = pick () in let (r, _) = Wuf.WUF.mfind indices_type x a' in ()
+    let x = pick () in let (r, _) = Wuf.WUF.mfind n x a' in ()
   done
 ;;
 
@@ -143,7 +142,7 @@ for i_ = 0 to i_max - 1 do
     let (time7, res7) = benchmark uftest2 in
     assert (res1 = res7);
     Printf.printf
-      "[%d, %d] ocaml[wc]: %f, coq[wc]: %f, ratio: %f\n"
+      "[%d, %d] ocaml-wc: %f, coq-wc: %f, ratio: %f%!\n"
       i j time1 time7 (time7 /. time1)
   done
 done

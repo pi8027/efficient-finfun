@@ -1,5 +1,4 @@
-From mathcomp Require Import all_ssreflect.
-Require Import core.
+Require Import all_ssreflect core.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -535,7 +534,6 @@ Definition union x y :=
     else ffun_set x' (inr v) (ffun_set y' (inl x') g').
 
 Definition munion x y : AState [:: (T, T + R)%type] unit :=
-  Eval simpl in
   x' <- mfind x;
   y' <- mfind y;
   if x'.1 == y'.1 then astate_ret tt else
@@ -591,8 +589,8 @@ Definition Ridx := 0.
 Definition Rop := addn_comoid.
 Definition cmp := leq.
 
-Definition mfind := mfind Ridx.
-Definition munion := munion Rop cmp.
+Definition mfind n := mfind Ridx (T := [finType of 'I_n]).
+Definition munion n := munion Rop cmp (T := [finType of 'I_n]).
 
 End WUF.
 
@@ -604,4 +602,4 @@ Extraction Inline
   mfind_rec mfind munion WUF.R WUF.Ridx WUF.Rop WUF.cmp
   Monoid.operator Monoid.com_operator addn_comoid addn_monoid.
 
-Extraction "../../ocaml/wuf.ml" runt_AState runt_AState_ ordinal_finType WUF.
+Extraction "../../ocaml/wuf.ml" Sign runt_AState runt_AState_ WUF.

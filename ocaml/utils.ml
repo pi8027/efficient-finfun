@@ -4,9 +4,9 @@ let string_of_float f = Format.sprintf "%.03f" f;;
 
 let with_timer f =
   Gc.full_major (); Gc.compact ();
-  let t = Sys.time () in
+  let t = Unix.gettimeofday () in
   let v = f () in
-  (Sys.time () -. t, v)
+  (Unix.gettimeofday () -. t, v)
 ;;
 
 let median (xs : float list) : float =

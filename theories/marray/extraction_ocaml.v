@@ -1,5 +1,4 @@
-From mathcomp Require Import all_ssreflect all_algebra.
-Require Import ordinal_ext core.
+Require Import all_ssreflect all_algebra ordinal_ext core.
 Require Extraction.
 
 Set Implicit Arguments.
@@ -30,11 +29,16 @@ Extraction Inline
 
 (* array state monad *)
 
+Extraction Implicit astate_ret_ [sig].
+Extraction Implicit astate_bind_ [sig].
+Extraction Implicit astate_lift_ [I sig].
+Extraction Implicit astate_GET_ [I sig].
+Extraction Implicit astate_SET_ [I sig].
 Extraction Implicit astate_ret [sig].
 Extraction Implicit astate_bind [sig].
-Extraction Implicit astate_lift [Ix sig].
-Extraction Implicit astate_GET [Ix sig].
-Extraction Implicit astate_SET [Ix sig].
+Extraction Implicit astate_lift [I sig].
+Extraction Implicit astate_GET [I sig].
+Extraction Implicit astate_SET [I sig].
 
 Extract Inductive AState => "runt_AState_"
   [(* return *) " (fun a s -> a)"
@@ -42,12 +46,11 @@ Extract Inductive AState => "runt_AState_"
    (* lift *)   " (fun f s -> let (ss, _) = Obj.magic s in f ss)"
    (* get *)    " (fun i s -> let (_, s1) = Obj.magic s in s1.(i))"
    (* set *)    " (fun (i, x) s -> let (_, s1) = Obj.magic s in s1.(i) <- x)"]
-  "(* It is not permitted to use AState_rec in extracted code. *)".
+  "(* It is not permitted to use AState_rect in extracted code. *)".
 Extract Type Arity AState 1.
 
 Extract Inlined Constant astate_ret => "(fun a s -> a)".
-Extract Inlined Constant astate_bind =>
-  "(fun f g s -> let r = f s in g r s)".
+Extract Inlined Constant astate_bind => "(fun f g s -> let r = f s in g r s)".
 Extract Inlined Constant astate_lift =>
   "(fun f s -> let (ss, _) = Obj.magic s in f ss)".
 Extract Inlined Constant astate_GET =>
@@ -66,6 +69,8 @@ Extract Constant run_AState =>
     let r = Obj.magic f s' in (s', r))".
 
 Extraction Inline
-  AState_monadType swap
+  Monad.base Monad.runt Monad.run Monad.ret Monad.bind
+  Identity_monadType AState_monadType
+  SWAP swap
   iterate_revord iterate_fin iterate_revfin
   miterate_revord miterate_fin miterate_revfin.

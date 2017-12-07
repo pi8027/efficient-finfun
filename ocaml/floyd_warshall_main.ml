@@ -46,7 +46,8 @@ for i_ = 0 to i_max - 1 do
     let (time3, res3) = benchmark (fun n -> FW.floyd_warshall_fast n) in
     assert (res1 = res2); assert (res1 = res3);
     Printf.printf
-      "[%d, %d] ocaml: %f, coq-pure: %f, coq-impure: %f\n" i j time1 time2 time3
+      "[%d, %d] ocaml: %f, coq-pure: %f, coq-impure: %f%!\n"
+      i j time1 time2 time3
   done
 done
 ;;

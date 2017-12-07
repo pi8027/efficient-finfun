@@ -23,6 +23,8 @@ Extract Inductive prod => "( * )" ["(,)"].
 
 Extract Inductive list => "list" ["[]" "(::)"].
 
+Extraction Inline image_mem.
+
 (* tag *)
 
 Extraction Inline tag tagged Tagged.
@@ -192,28 +194,30 @@ Extraction Inline
 (* algebra *)
 
 Extraction Inline
-  GRing.Zmodule.zero GRing.Zmodule.opp GRing.Zmodule.add
-  GRing.Zmodule.mixin GRing.Zmodule.class GRing.Zmodule.pack
+  GRing.Zmodule.zero GRing.Zmodule.opp GRing.Zmodule.add GRing.Zmodule.mixin
+  GRing.Zmodule.class GRing.Zmodule.sort GRing.Zmodule.pack
   GRing.Zmodule.eqType GRing.Zmodule.choiceType
-  GRing.Ring.one GRing.Ring.mul GRing.Ring.EtaMixin
-  GRing.Ring.base GRing.Ring.mixin GRing.Ring.class GRing.Ring.pack
+  GRing.Ring.one GRing.Ring.mul GRing.Ring.EtaMixin GRing.Ring.base
+  GRing.Ring.mixin GRing.Ring.class GRing.Ring.sort GRing.Ring.pack
   GRing.Ring.eqType GRing.Ring.choiceType GRing.Ring.zmodType
-  GRing.ComRing.RingMixin GRing.ComRing.base GRing.ComRing.class GRing.Ring.pack
+  GRing.ComRing.RingMixin GRing.ComRing.base GRing.ComRing.class
+  GRing.ComRing.sort GRing.Ring.pack
   GRing.ComRing.eqType GRing.ComRing.choiceType GRing.ComRing.zmodType
   GRing.ComRing.ringType
   GRing.UnitRing.unit GRing.UnitRing.inv GRing.UnitRing.EtaMixin
-  GRing.UnitRing.base GRing.UnitRing.mixin
-  GRing.UnitRing.class GRing.UnitRing.pack
+  GRing.UnitRing.base GRing.UnitRing.mixin GRing.UnitRing.class
+  GRing.UnitRing.sort GRing.UnitRing.pack
   GRing.UnitRing.eqType GRing.UnitRing.choiceType
   GRing.UnitRing.zmodType GRing.UnitRing.ringType
   GRing.ComUnitRing.Mixin GRing.ComUnitRing.base GRing.ComUnitRing.mixin
-  GRing.ComUnitRing.base2 GRing.ComUnitRing.class GRing.ComUnitRing.pack
+  GRing.ComUnitRing.base2 GRing.ComUnitRing.class GRing.ComUnitRing.sort
+  GRing.ComUnitRing.pack
   GRing.ComUnitRing.eqType GRing.ComUnitRing.choiceType
   GRing.ComUnitRing.zmodType GRing.ComUnitRing.ringType
   GRing.ComUnitRing.comRingType GRing.ComUnitRing.unitRingType
   GRing.ComUnitRing.com_unitRingType
   GRing.IntegralDomain.base GRing.IntegralDomain.mixin
-  GRing.IntegralDomain.class GRing.IntegralDomain.pack
+  GRing.IntegralDomain.class GRing.IntegralDomain.sort GRing.IntegralDomain.pack
   GRing.IntegralDomain.eqType GRing.IntegralDomain.choiceType
   GRing.IntegralDomain.zmodType GRing.IntegralDomain.ringType
   GRing.IntegralDomain.comRingType GRing.IntegralDomain.unitRingType

@@ -1,5 +1,4 @@
-From mathcomp Require Import all_ssreflect all_algebra.
-Require Import presburger.
+Require Import all_ssreflect all_algebra presburger.
 Require Extraction.
 
 Set Implicit Arguments.
