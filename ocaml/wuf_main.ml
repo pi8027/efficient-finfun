@@ -76,6 +76,18 @@ let uftest2 (a : ufarray) elems n m =
   done
 ;;
 
+let uftest3 (a : ufarray) elems n m =
+  let pick () = Obj.magic (Random.int elems) in
+  let a' = Obj.magic ((), a) in
+  for i = 1 to n do
+    let x = pick () in let y = pick () in
+    Wuf_o0.WUF.munion n x y a'
+  done;
+  for j = 1 to m do
+    let x = pick () in let (r, _) = Wuf_o0.WUF.mfind n x a' in ()
+  done
+;;
+
 (*
 let uftest3 elems n m =
   let a1 : ufarray = Array.init elems (fun _ -> Wuf.Inr 1) in
@@ -140,10 +152,12 @@ for i_ = 0 to i_max - 1 do
     let (time6, res6) = benchmark (uftest1 union_rank find_halve) in
     *)
     let (time7, res7) = benchmark uftest2 in
+    let (time8, res8) = benchmark uftest3 in
     assert (res1 = res7);
+    assert (res1 = res8);
     Printf.printf
-      "[%d, %d] ocaml-wc: %f, coq-wc: %f, ratio: %f%!\n"
-      i j time1 time7 (time7 /. time1)
+      "[%d, %d] ocaml-wc: %f, coq-wc: %f, coq-wco0: %f, ratio: %f%!\n"
+      i j time1 time7 time8 (time7 /. time1)
   done
 done
 ;;

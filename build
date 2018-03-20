@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-eval `opam config env --switch=4.05.0+flambda`
+eval `opam config env --switch=4.06.0+flambda`
 
 cd `dirname $0`
 BASEDIR=`pwd`
@@ -14,6 +14,7 @@ envset(){
     vfiles=(ordinal_ext.v core.v extraction_ocaml.v \
             union_find.v floyd_warshall.v quicksort.v)
   ;;
+  theories/misc) COQVER=mod; vfiles=(mergesort.v extraction_ocaml.v) ;;
   esac
 
   MATHCOMP=$BASEDIR/math-comp-$COQVER/mathcomp
@@ -32,7 +33,7 @@ puterr(){
 
 #### Proof Scripts
 
-foreach dir (theories/before theories/after theories/marray)
+foreach dir (theories/before theories/after theories/marray theories/misc)
 pushd $dir
 
   envset $dir

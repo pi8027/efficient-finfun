@@ -596,10 +596,17 @@ End WUF.
 
 Require Import extraction_ocaml.
 Unset Extraction SafeImplicits.
-Set Extraction Flag 8175.
 
 Extraction Inline
   mfind_rec mfind munion WUF.R WUF.Ridx WUF.Rop WUF.cmp
   Monoid.operator Monoid.com_operator addn_comoid addn_monoid.
+
+Extract Type Arity AState 0.
+
+Extraction "../../ocaml/wuf_o0.ml" Sign runt_AState runt_AState_ WUF.
+
+Set Extraction Flag 8175.
+
+Extract Type Arity AState 1.
 
 Extraction "../../ocaml/wuf.ml" Sign runt_AState runt_AState_ WUF.

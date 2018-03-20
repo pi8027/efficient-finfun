@@ -479,13 +479,22 @@ End Mergesort.
 
 Require Import extraction_ocaml.
 Unset Extraction SafeImplicits.
-Set Extraction Flag 8175.
 
 Extraction Implicit Quicksort.partition_rec [I].
 Extraction Implicit Quicksort.partition [I].
 Extraction Implicit Quicksort.quicksort_rec [I].
 
 Extraction Inline up_search down_search Quicksort.partition Quicksort.quicksort.
+
+Extract Type Arity AState 0.
+
+Extraction "../../ocaml/quicksort_o0.ml"
+           nat_eqType ordinal_finType
+           Sign runt_AState runt_AState_ Quicksort Mergesort.
+
+Set Extraction Flag 8175.
+
+Extract Type Arity AState 1.
 
 Extraction "../../ocaml/quicksort.ml"
            nat_eqType ordinal_finType

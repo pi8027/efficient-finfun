@@ -1,6 +1,10 @@
 module Qs = Quicksort;;
 module QS = Qs.Quicksort;;
-module MS = Qs.Mergesort;;
+module Qs_o0 = Quicksort_o0;;
+module QS_o0 = Qs_o0.Quicksort;;
+module Ms = Mergesort;;
+module MS = Ms.Mergesort;;
+module MStail = Ms.Mergesort_tailrec;;
 
 Random.self_init ();;
 
@@ -9,9 +13,9 @@ let gen_array s elems =
 ;;
 
 let gen_list s elems =
-  let rec glrec n =
-    if n = 0 then [] else let x = Random.int elems in x :: glrec (n - 1) in
-  Random.init s; glrec elems
+  let rec glrec n acc =
+    if n = 0 then acc else let x = Random.int elems in glrec (n - 1) (x :: acc) in
+  Random.init s; List.rev (glrec elems [])
 ;;
 
 let quicksort (cmp : 'a -> 'a -> bool) (arr : 'a array) : unit =
@@ -40,7 +44,7 @@ let i_max = 100 in
 let j_max = 1 in
 let seeds = Array.init (i_max * j_max) (fun _ -> Random.bits ()) in
 for i_ = 0 to i_max - 1 do
-  let i = (i_ + 1) * 1000 in
+  let i = (i_ + 1) * 100000 in
   for j = 0 to j_max - 1 do
     let benchmark (test : int -> int array -> int array) =
       Utils.with_timer_median 5 (fun _ ->
@@ -59,17 +63,20 @@ for i_ = 0 to i_max - 1 do
                     quicksort (<=) arr'; arr') in
     let (time4, res4) = benchmark
       (fun n arr -> QS.quicksort_ (Qs.ordinal_finType n) (<=) arr) in
-    let (time5, res5) = benchmarkl
-      (fun n xs -> Obj.magic MS.mergesort Qs.nat_eqType (<=) xs) in
+    let (time5, res5) = benchmark
+      (fun n arr -> QS_o0.quicksort_ (Qs_o0.ordinal_finType n) (<=) arr) in
+    let (time6, res6) =
+      benchmarkl (fun n xs -> Obj.magic MStail.sort (<=) xs) in
     assert (res1 = res2);
     assert (res1 = res3);
     assert (res1 = res4);
-    assert (res1 = Array.of_list res5);
+    assert (res1 = res5);
+    assert (res1 = Array.of_list res6);
     Printf.printf
-      "[%6d, %d] Array.stable_sort-o: %6.3f, Array.sort-o: %6.3f, \
-                 Quicksort-o: %6.3f, Quicksort-c: %6.3f, Mergesort-c: %6.3f%!\n"
-      i j (1000. *. time1) (1000. *. time2) (1000. *. time3) (1000. *. time4)
-      (1000. *. time5)
+      "[%7d, %d] Array.stable_sort-o: %8.6f, Array.sort-o: %8.6f, \
+                 Quicksort-o: %8.6f, Quicksort-c: %8.6f, Quicksort-co0: %8.6f, \
+                 Mergesort1-c: %8.6f%!\n"
+      i j time1 time2 time3 time4 time5 time6
   done
 done
 ;;
