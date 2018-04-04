@@ -49,7 +49,8 @@ pushd $dir
 
   (echo $COQLIB; echo $vfiles) > _CoqProject
 
-  make -j ${JOBS:-4} VFILES="$vfiles" PATH="$COQBIN:$PATH" COQLIBS="$COQLIB"
+  make -j ${JOBS:-8} VFILES="$vfiles" PATH="$COQBIN:$PATH" \
+       COQLIBS="$COQLIB" COQFLAGS="-debug -native-compiler"
 
 popd # theories/*
 end

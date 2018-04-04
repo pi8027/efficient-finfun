@@ -25,7 +25,7 @@ envset(){
   
   MATHCOMP=$BASEDIR/math-comp-$KIND/mathcomp
   export COQBIN=$BASEDIR/coq-$KIND/bin/
-  export COQLIB=(-I $MATHCOMP -R $MATHCOMP mathcomp)
+  export COQLIB=(-R $MATHCOMP mathcomp)
   export PATH=$COQBIN:$INIT_PATH
 }
 
@@ -34,7 +34,7 @@ yes_no_prompt "Coq, MathComp and the regular language library will be rebuilt. D
 foreach dir (coq-orig coq-mod)
 pushd $dir
   envset $dir
-  ./configure -debug -local -native-compiler no -camlp5dir $(ocamlfind query camlp5)
+  ./configure -debug -local -native-compiler yes -camlp5dir $(ocamlfind query camlp5)
   make archclean clean
   make -j 8 world byte
 popd
@@ -44,7 +44,8 @@ foreach dir (math-comp-orig math-comp-mod)
 pushd $dir/mathcomp
   envset $dir
   make clean
-  make -j 8 #ssreflect/all_ssreflect.vo fingroup/all_fingroup.vo algebra/all_algebra.vo
+  make COQFLAGS="-q $COQLIB -debug -native-compiler" -j 8
+    #ssreflect/all_ssreflect.vo fingroup/all_fingroup.vo algebra/all_algebra.vo
 popd
 end
 
@@ -58,8 +59,8 @@ pushd $dir
   envset $dir
   tar xzf ../regular.tar.gz
   patch -p1 < ../regular.patch
-  coq_makefile -f Make > Makefile
+  coq_makefile -f Make -o Makefile
   make clean
-  make COQLIBS="-R . regular $COQLIB" -j 8
+  make COQFLAGS="-q -R . regular $COQLIB -debug -native-compiler" -j 8
 popd
 end
