@@ -9,12 +9,16 @@ envset(){
   case $1 in
   theories/before) COQVER=orig; vfiles=(presburger.v extraction.v) ;;
   theories/after) COQVER=mod; vfiles=(presburger.v extraction.v) ;;
+  theories/misc) COQVER=mod; vfiles=(extraction_ocaml.v mergesort.v) ;;
   theories/marray)
     COQVER=mod
     vfiles=(ordinal_ext.v core.v extraction_ocaml.v \
             union_find.v floyd_warshall.v quicksort.v)
   ;;
-  theories/misc) COQVER=mod; vfiles=(mergesort.v extraction_ocaml.v) ;;
+  theories/marray2)
+    COQVER=mod
+    vfiles=(ordinal_ext.v core.v extraction_ocaml.v)
+  ;;
   esac
 
   MATHCOMP=$BASEDIR/math-comp-$COQVER/mathcomp
@@ -33,7 +37,8 @@ puterr(){
 
 #### Proof Scripts
 
-foreach dir (theories/before theories/after theories/marray theories/misc)
+foreach dir (theories/before theories/after theories/misc \
+             theories/marray theories/marray2)
 pushd $dir
 
   envset $dir

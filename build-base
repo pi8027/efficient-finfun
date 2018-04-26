@@ -53,6 +53,10 @@ end
     wget -O regular.tar.gz \
     http://www.ps.uni-saarland.de/~doczkal/regular/ConstructiveRegularLanguages-2013-12-07.tgz
 
+sha256sum -c <<EOT
+41e33914b37d8b744a4deaa1ca3ac4fe392b29bfb57aca2e24e1777eb1f4dfd5  regular.tar.gz
+EOT
+
 foreach dir (regular-orig regular-mod)
 mkdir -p $dir
 pushd $dir
