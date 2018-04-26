@@ -364,119 +364,6 @@ Definition quicksort_ (arr : {ffun I -> A}) : {ffun I -> A} :=
 End Quicksort.
 End Quicksort.
 
-Module Mergesort.
-Section Mergesort.
-
-Variables (A : eqType) (cmp : A -> A -> bool).
-
-Fixpoint merge xs :=
-  match xs with
-    | [::] => id
-    | x :: xs' =>
-      fix merge' ys {struct ys} :=
-        if ys is y :: ys'
-          then if cmp x y then x :: merge xs' ys else y :: merge' ys'
-          else xs
-  end.
-
-Fixpoint merge_pair xs :=
-  match xs with
-    | [::] => [::]
-    | [:: x] => [:: x]
-    | (x :: x' :: xs) => merge x x' :: merge_pair xs
-  end.
-
-Fixpoint list2_rec (A : Type) (P : seq A -> Set)
-  (c1 : P [::]) (c2 : forall x, P [:: x])
-  (c3 : forall x x' xs, P xs -> P [:: x, x' & xs]) (xs : seq A) : P xs :=
-  match xs with
-    | [::] => c1
-    | [:: x] => c2 x
-    | [:: x, x' & xs] => c3 x x' xs (list2_rec c1 c2 c3 xs)
-  end.
-
-Lemma merge_pair_leq xs : size (merge_pair xs) <= (size xs).
-Proof. by elim/list2_rec: xs => //= _ _ xs /leqW; rewrite ltnS. Qed.
-
-Lemma Acc_ltsize T : well_founded (fun (x y : seq T) => size x < size y).
-Proof.
-move => xs.
-elim: {xs} (size xs) {1 3}xs (leqnn (size xs)) => [[] // |] n IH xs H.
-constructor => ys /(fun H0 => leq_trans H0 H) {H}; rewrite ltnS.
-apply IH.
-Qed.
-
-Definition mergesort (xs : seq A) : seq A :=
-  Fix (@Acc_ltsize (seq A)) (fun _ => seq A)
-    (fun xss : seq (seq A) =>
-      match xss return (forall yss, size yss < size xss -> seq A) -> seq A with
-        | [::] => fun _ => [::]
-        | [:: xs] => fun _ => xs
-        | (xs :: xs' :: xss') as xss =>
-          fun (H : forall yss, size yss <= (size xss').+1 -> seq A) =>
-            H (merge_pair xss) (merge_pair_leq xss')
-      end)
-  (map (fun x => [:: x]) xs).
-
-Fixpoint sorted' x xs :=
-  if xs is x' :: xs then cmp x x' && sorted' x' xs else true.
-
-Definition sorted xs := if xs is x :: xs then sorted' x xs else true.
-
-Lemma sortedE x xs : sorted (x :: xs) =
-  (if xs is x' :: _ then cmp x x' else true) && sorted xs.
-Proof. by case: xs. Qed.
-
-Theorem mergesort_sorted (xs : seq A) :
-  (forall x y, ~ cmp x y -> cmp y x) -> sorted (mergesort xs).
-Proof.
-rewrite /mergesort /Fix => asym.
-set xss := map _ _.
-have H: all sorted xss by rewrite {}/xss; elim: xs.
-move: (Acc_ltsize _) => Hi.
-elim/Acc_ind: xss / Hi (Hi) H => {xs} -[| xs [| xs' xss]] _ IH Hi;
-  rewrite -Fix_F_eq //; first by rewrite /= andbT.
-move => H; apply IH; first by rewrite !ltnS merge_pair_leq.
-elim/list2_rec: {xs xs' xss H Hi IH} [:: _, _ & _] H =>
-  //= xs xs' xss IH /and3P [H H0 H1]; rewrite {}IH // andbT.
-elim: xs xs' H H0 {xss H1} => // x xs IHx;
-  elim => // y ys IHy H H0 /=; case: ifP => H1.
-- move: H; rewrite !sortedE => /andP [H2 H3]; rewrite IHx // andbT.
-  by case: xs H2 {IHx IHy H3} => //= x' xs; case: ifP.
-- move: H0; rewrite !sortedE; case/andP => H2 H3; rewrite IHy // andbT.
-  case: ys H2 {IHx IHy H3} => //.
-  + by move => _; apply asym; rewrite H1.
-  + by move => y' ys; case: ifP => // _ _; apply asym; rewrite H1.
-Qed.
-
-Theorem mergesort_perm (xs : seq A) : perm_eq xs (mergesort xs).
-Proof.
-rewrite /mergesort /Fix.
-set xss := map _ _.
-have {1}->: xs = flatten xss by rewrite {}/xss; elim: xs => //= x xs {1}->.
-move: (Acc_ltsize _) => Hi.
-elim/Acc_ind: xss / Hi (Hi) => {xs} -[| xs [| xs' xss]] _ IH Hi;
-  rewrite -Fix_F_eq //; first by rewrite /= cats0.
-apply perm_eq_trans with (flatten (merge_pair (xs :: xs' :: xss)));
-  last by apply IH; rewrite /= !ltnS merge_pair_leq.
-elim/list2_rec: {xs xs' xss IH Hi} [:: _, _ & _] => //= xs xs' xss.
-rewrite catA -(perm_cat2l (xs ++ xs')) => /perm_eqlP ->; rewrite perm_cat2r.
-elim: xs xs' {xss} => // x xs IHx; elim; first by rewrite cats0.
-move => y ys IHy /=; case: ifP => _.
-- rewrite (perm_cat2l [:: x]); apply IHx.
-- rewrite (perm_catCA (x :: xs) [:: y] ys) /= (perm_cat2l [:: y]); apply IHy.
-Qed.
-
-Definition mergesort_finfun (I : finType) (a : {ffun I -> A}) : {ffun I -> A} :=
-  let '(Tuple xs Hxs) := fgraph a in
-  Finfun
-    (@Tuple #|I| A (mergesort xs)
-                   (eq_ind _ (eq_op ^~ #|I|) Hxs _
-                           (perm_eq_size (mergesort_perm xs)))).
-
-End Mergesort.
-End Mergesort.
-
 Require Import extraction_ocaml.
 Unset Extraction SafeImplicits.
 
@@ -489,13 +376,11 @@ Extraction Inline up_search down_search Quicksort.partition Quicksort.quicksort.
 Extract Type Arity AState 0.
 
 Extraction "../../ocaml/quicksort_o0.ml"
-           nat_eqType ordinal_finType
-           Sign runt_AState runt_AState_ Quicksort Mergesort.
+           nat_eqType ordinal_finType Sign runt_AState runt_AState_ Quicksort.
 
 Set Extraction Flag 8175.
 
 Extract Type Arity AState 1.
 
 Extraction "../../ocaml/quicksort.ml"
-           nat_eqType ordinal_finType
-           Sign runt_AState runt_AState_ Quicksort Mergesort.
+           nat_eqType ordinal_finType Sign runt_AState runt_AState_ Quicksort.
