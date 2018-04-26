@@ -261,52 +261,43 @@ Variable (T : finType) (sig : Sign) (A : Type)
 Definition iterate_fin (x : A) : A :=
   iterate_revord (fun i x => f (raw_fin_decode (rev_ord i)) x) x (leqnn $|T|).
 
-(*
 Lemma iterate_fin_eq x : iterate_fin x = foldl (fun x => f ^~ x) x (enum T).
 Proof.
-rewrite /iterate_fin iterate_revord_eq -foldl_rev rev_enum_ord enumT' ord_enumE.
-elim: (enum _) x => //= e es IH x. rewrite IH rev_ordK.
+by rewrite /iterate_fin iterate_revord_eq -(revK (enum T)) enumT unlock
+           ord_enumE foldl_rev -map_rev rev_enum_ord -map_comp foldr_map.
 Qed.
-*)
 
 Definition iterate_revfin (x : A) : A :=
   iterate_revord (fun i x => f (raw_fin_decode i) x) x (leqnn $|T|).
 
-(*
 Lemma iterate_revfin_eq x : iterate_revfin x = foldr f x (enum T).
 Proof.
-rewrite /iterate_revfin iterate_revord_eq enumT' ord_enumE.
-by elim: (enum _) x => //= e es IH x; rewrite IH.
+by rewrite /iterate_revfin iterate_revord_eq
+           enumT unlock ord_enumE [X in _ = X]foldr_map.
 Qed.
-*)
 
 Definition miterate_fin (x : A) : AState sig A :=
   miterate_revord (fun i => g (raw_fin_decode (rev_ord i))) x (leqnn $|T|).
 
-(*
 Lemma run_miterate_fin (x : A) (s : states_AState sig) :
   run_AState (miterate_fin x) s =
   foldl (fun '(s, x) i => run_AState (g i x) s) (s, x) (enum T).
 Proof.
-rewrite /miterate_fin run_miterate_revord
-        -foldl_rev rev_enum_ord enumT' ord_enumE.
-by elim: (enum _) s x => //= e es IH s x;
-   rewrite rev_ordK; case: (run_AState _ _) => s' y; rewrite IH.
+rewrite /miterate_fin run_miterate_revord -(revK (enum T)) enumT unlock
+        ord_enumE foldl_rev -map_rev rev_enum_ord -map_comp foldr_map.
+by elim: (enum _) => //= i xs ->; case: (foldr _ _ _).
 Qed.
-*)
 
 Definition miterate_revfin (x : A) : AState sig A :=
   miterate_revord (fun i => g (raw_fin_decode i)) x (leqnn $|T|).
 
-(*
 Lemma run_miterate_revfin (x : A) (s : states_AState sig) :
   run_AState (miterate_revfin x) s =
   foldr (fun i '(s, x) => run_AState (g i x) s) (s, x) (enum T).
 Proof.
-rewrite /miterate_revfin run_miterate_revord enumT' ord_enumE.
-by elim: (enum _) s x => //= e es IH s x; rewrite IH.
+by rewrite /miterate_revfin run_miterate_revord enumT unlock ord_enumE
+           [X in _ = X]foldr_map /comp.
 Qed.
-*)
 
 End Iteration_finType.
 
