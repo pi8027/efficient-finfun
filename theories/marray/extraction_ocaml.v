@@ -41,11 +41,11 @@ Extraction Implicit astate_GET [I sig].
 Extraction Implicit astate_SET [I sig].
 
 Extract Inductive AState => "runt_AState_"
-  [(* return *) " (fun a s -> a)"
-   (* bind *)   " (fun (f, g) s -> let r = f s in g r s)"
-   (* lift *)   " (fun f s -> let (ss, _) = Obj.magic s in f ss)"
-   (* get *)    " (fun i s -> let (_, s1) = Obj.magic s in s1.(i))"
-   (* set *)    " (fun (i, x) s -> let (_, s1) = Obj.magic s in s1.(i) <- x)"]
+  [(* return *) "(fun a s -> a)"
+   (* bind *)   "(fun (f, g) s -> let r = f s in g r s)"
+   (* lift *)   "(fun f s -> let (ss, _) = Obj.magic s in f ss)"
+   (* get *)    "(fun i s -> let (_, s1) = Obj.magic s in s1.(i))"
+   (* set *)    "(fun (i, x) s -> let (_, s1) = Obj.magic s in s1.(i) <- x)"]
   "(* It is not permitted to use AState_rect in extracted code. *)".
 Extract Type Arity AState 1.
 
