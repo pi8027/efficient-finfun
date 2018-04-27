@@ -57,9 +57,8 @@ Lemma ltngtP' m n : compare_nat' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-(case: (ltngtP m n) => H;
-  last by rewrite -H leqnn maxnn minnn subnn; constructor);
-  rewrite (maxnC n) (minnC n) ?(ltnW H) leqNgt H /=.
+(case: (ltngtP m n) => H; last by rewrite -H maxnn minnn subnn; constructor);
+  rewrite (maxnC n) (minnC n).
 - rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 - rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).

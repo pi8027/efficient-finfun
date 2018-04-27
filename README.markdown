@@ -13,17 +13,17 @@ arrays. Our method consists of the following three parts:
 
 ## Requirements
 
-* OPAM, OCaml 4.05.0+flambda, Camlp5, Ocamlbuild and ocamlfind
+* OPAM, OCaml 4.06.0+flambda, Camlp5, Ocamlbuild and ocamlfind
 * tmux and zsh (for benchmark tools and build scripts)
 
 Following materials are also required, but included as submodules or
 automatically downloaded by the build script.
 
 * Coq
-  ([official version 8.7.0](https://github.com/coq/coq/tree/V8.7.0) and
+  ([official version 8.8.0](https://github.com/coq/coq/tree/V8.8.0) and
    [extraction-efficient-finfun-master branch](https://github.com/pi8027/coq/tree/extraction-efficient-finfun-master))
 * Mathematical Components Library
-  ([official version 1.6.4](https://github.com/math-comp/math-comp/tree/mathcomp-1.6.4) and
+  ([official version 1.7.0](https://github.com/math-comp/math-comp/tree/mathcomp-1.7.0) and
    [modified-fintype branch](https://github.com/pi8027/math-comp/tree/modified-fintype))
 * [Constructive Regular Language Library](http://www.ps.uni-saarland.de/~doczkal/regular/)
   (updated 2013-12-07, apply regular.patch)
@@ -38,6 +38,7 @@ automatically downloaded by the build script.
 
 ## References
 
+* Kazuhiko Sakaguchi. Program Extraction for Mutable Arrays. [FLOPS 2018](http://www.sqlab.jp/FLOPS2018/).
 * Kazuhiko Sakaguchi and Yukiyoshi Kameyama.
   Efficient Finite-Domain Function Library for the Coq Proof Assistant.
   IPSJ Transactions on Programming, Vol 10, No 1, pp. 14-28, 2017.

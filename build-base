@@ -34,7 +34,7 @@ yes_no_prompt "Coq, MathComp and the regular language library will be rebuilt. D
 foreach dir (coq-orig coq-mod)
 pushd $dir
   envset $dir
-  ./configure -debug -local -native-compiler yes -camlp5dir $(ocamlfind query camlp5)
+  ./configure -local -native-compiler yes -camlp5dir $(ocamlfind query camlp5)
   make archclean clean
   make -j 8 world byte
 popd
