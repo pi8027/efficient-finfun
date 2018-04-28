@@ -17,7 +17,8 @@ envset(){
   ;;
   theories/marray2)
     COQVER=mod
-    vfiles=(ordinal_ext.v core.v extraction_ocaml.v)
+    vfiles=(ordinal_ext.v core.v extraction_ocaml.v \
+            union_find.v floyd_warshall.v quicksort.v)
   ;;
   esac
 

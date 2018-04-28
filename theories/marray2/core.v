@@ -10,6 +10,68 @@ Unset Printing Implicit Defensive.
 
 (* copyType: provides a method for deep copying of states. *)
 
+Inductive copyable : Type -> Type :=
+  | copyable_ffun (I : finType) (T : Type) : copyable {ffun I -> T}
+  | copyable_prod (T T' : Type) :
+    copyable T -> copyable T' -> copyable (T * T').
+
+Definition copy_ffun (I : finType) (T : Type) (f : {ffun I -> T}) := f.
+
+Definition copy_raw : forall T, copyable T -> T -> T :=
+  @copyable_rect
+    (fun T _ => T -> T)
+    (fun (I : finType) T (f : {ffun I -> T}) => copy_ffun f)
+    (fun T T' _ cT _ cT' '(x, y) => (cT x, cT' y)).
+
+Module Copyable.
+
+Structure type : Type := Pack { sort; _ : copyable sort }.
+
+Section ClassDef.
+Variable (T : Type) (cT : type).
+
+Definition class :=
+  let: Pack _ c := cT return copyable (sort cT) in c.
+Definition pack c := @Pack T c.
+Definition clone := fun c & sort cT -> T & phant_id (pack c) cT => pack c.
+
+End ClassDef.
+
+Module Exports.
+
+Coercion sort : type >-> Sortclass.
+
+Notation copyType := type.
+Notation "[ 'copyMixin' 'of' T ]" :=
+  (class _ : copyable T)
+    (at level 0, format "[ 'copyMixin' 'of' T ]") : form_scope.
+Notation "[ 'copyType' 'of' T ]" :=
+  (@clone T _ _ idfun id).
+
+End Exports.
+
+End Copyable.
+
+Import Copyable.Exports.
+
+Definition copy (T : copyType) : T -> T := copy_raw (Copyable.class T).
+
+Lemma copyE (T : copyType) (x : T) : copy x = x.
+Proof.
+by rewrite /copy;
+  elim: (Copyable.class T) x => //= Tl Tr cl Hl cr Hr [x y]; rewrite Hl Hr.
+Qed.
+
+Canonical finfun_copyType (I : finType) (T : Type) : copyType :=
+  @Copyable.Pack {ffun I -> T} (copyable_ffun I T).
+
+Canonical prod_copyType (T1 T2 : copyType) : copyType :=
+  @Copyable.Pack
+    (T1 * T2) (copyable_prod (Copyable.class T1) (Copyable.class T2)).
+
+Global Opaque copy_raw copy.
+
+(*
 Module Type CopyableRawSig.
 
 Parameters
@@ -53,7 +115,7 @@ End CopyableRaw.
 
 Module Copyable.
 
-Structure type : Type := Pack {sort; _ : CopyableRaw.mixin_of sort }.
+Structure type : Type := Pack { sort; _ : CopyableRaw.mixin_of sort }.
 
 Section ClassDef.
 Variable (T : Type) (cT : type).
@@ -66,21 +128,23 @@ Definition clone := fun c & sort cT -> T & phant_id (pack c) cT => pack c.
 End ClassDef.
 
 Module Exports.
+
 Coercion sort : type >-> Sortclass.
+
 Notation copyType := type.
 Notation "[ 'copyMixin' 'of' T ]" :=
   (class _ : CopyableRaw.mixin_of T)
     (at level 0, format "[ 'copyMixin' 'of' T ]") : form_scope.
 Notation "[ 'copyType' 'of' T ]" :=
   (@clone T _ _ idfun id).
+
 End Exports.
 
 End Copyable.
 
 Import Copyable.Exports.
 
-Definition copy (T : copyType) : T -> T :=
-  CopyableRaw.copy (Copyable.class T).
+Definition copy (T : copyType) : T -> T := CopyableRaw.copy (Copyable.class T).
 
 Lemma copyE (T : copyType) (x : T) : copy x = x.
 Proof. by rewrite /copy; case: T x => /= T m x; rewrite CopyableRaw.copyE. Qed.
@@ -91,8 +155,15 @@ Canonical finfun_copyType (I : finType) (T : Type) : copyType :=
 Canonical pair_copyType (T1 T2 : copyType) : copyType :=
   @Copyable.Pack
     (T1 * T2) (CopyableRaw.pair_mixin (Copyable.class T1) (Copyable.class T2)).
+*)
 
-(* The array state monad *)
+(*
+ The array state monad
+ [Note] AState_rect and run_AState_raw must not be called from other than
+ run_AState. This restriction can be enforced by hiding some definitions by
+ using a modules and module type, but "Extract Constant" command can't be used
+ for hidden definitions.
+*)
 
 Definition ffun_set
            (I : finType) (T : Type) (i : I) (x : T) (f : {ffun I -> T}) :=
@@ -102,79 +173,22 @@ Lemma subst_id (I : finType) (T : Type) (i : I) (x : T) (f : {ffun I -> T}) :
   x = f i -> ffun_set i x f = f.
 Proof. by move ->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
 
-Module Type AStateSig.
-
-Parameters
-  (AState : Type -> Type -> Type -> Type)
-  (astate_ret : forall {S A : Type}, A -> AState S S A)
-  (astate_bind : forall {S S' S'' A B : Type},
-      AState S S' A -> (A -> AState S' S'' B) -> AState S S'' B)
-  (astate_frameL : forall {Sl Sl' Sr A : Type},
-      AState Sl Sl' A -> AState (Sl * Sr) (Sl' * Sr) A)
-  (astate_frameR : forall {Sl Sr Sr' A : Type},
-      AState Sr Sr' A -> AState (Sl * Sr) (Sl * Sr') A)
-  (astate_A : forall {S S' S'' : Type},
-      AState ((S * S') * S'') (S * (S' * S'')) unit)
-  (astate_A' : forall {S S' S'' : Type},
-      AState (S * (S' * S'')) ((S * S') * S'') unit)
-  (astate_C : forall {S S' : Type}, AState (S * S') (S' * S) unit)
-  (astate_GET : forall {I : finType} {T : Type},
-      'I_#|I| -> AState {ffun I -> T} {ffun I -> T} T)
-  (astate_SET : forall {I : finType} {T : Type},
-      'I_#|I| -> T -> AState {ffun I -> T} {ffun I -> T} unit)
-  (run_AState : forall (S : copyType) (S' A : Type),
-      AState S S' A -> S -> A * S')
-  (run_AStateE_ret : forall (S : copyType) (A : Type) (a : A) (s : S),
-      run_AState (astate_ret a) s = (a, s))
-  (run_AStateE_bind :
-     forall (S S' : copyType) (S'' A B : Type)
-            (f : AState S S' A) (g : A -> AState S' S'' B) (s : S),
-       run_AState (astate_bind f g) s =
-       let (a, s') := run_AState f s in run_AState (g a) s')
-  (run_AStateE_frameL :
-     forall (Sl Sr : copyType) (Sl' A : Type)
-            (f : AState Sl Sl' A) (s : Sl * Sr),
-       run_AState (astate_frameL f) s =
-       let (sl, sr) := s in let (a, sl') := run_AState f sl in (a, (sl', sr)))
-  (run_AStateE_frameR :
-     forall (Sl Sr : copyType) (Sr' A : Type)
-            (f : AState Sr Sr' A) (s : Sl * Sr),
-       run_AState (astate_frameR f) s =
-       let (sl, sr) := s in let (a, sr') := run_AState f sr in (a, (sl, sr')))
-  (run_AStateE_A : forall (S S' S'' : copyType) (s : S * S' * S''),
-      run_AState astate_A s = let '(s, s', s'') := s in (tt, (s, (s', s''))))
-  (run_AStateE_A' : forall (S S' S'' : copyType) (s : S * (S' * S'')),
-      run_AState astate_A' s = let '(s, (s', s'')) := s in (tt, (s, s', s'')))
-  (run_AStateE_C : forall (S S' : copyType) (s : S * S'),
-      run_AState astate_C s = (let (s, s') := s in (tt, (s', s))))
-  (run_AStateE_GET :
-     forall (I : finType) (T : Type) (s : {ffun I -> T}) (i : 'I_#|I|),
-       run_AState (astate_GET i) s = (s (fin_decode i), s))
-  (run_AStateE_SET :
-     forall (I : finType) (T : Type) (s : {ffun I -> T}) (i : 'I_#|I|) (x : T),
-       run_AState (astate_SET i x) s = (tt, ffun_set (fin_decode i) x s)).
-
-End AStateSig.
-
-Module AState : AStateSig.
-
-Inductive AState_ : Type -> Type -> Type -> Type :=
-  | astate_ret_ (S A : Type) : A -> AState_ S S A
+Inductive AState : Type -> Type -> Type -> Type :=
+  | astate_ret_ (S A : Type) : A -> AState S S A
   | astate_bind_ (S S' S'' A B : Type) :
-      AState_ S S' A -> (A -> AState_ S' S'' B) -> AState_ S S'' B
+      AState S S' A -> (A -> AState S' S'' B) -> AState S S'' B
   | astate_frameL_ (Sl Sl' Sr A : Type) :
-      AState_ Sl Sl' A -> AState_ (Sl * Sr) (Sl' * Sr) A
+      AState Sl Sl' A -> AState (Sl * Sr) (Sl' * Sr) A
   | astate_frameR_ (Sl Sr Sr' A : Type) :
-      AState_ Sr Sr' A -> AState_ (Sl * Sr) (Sl * Sr') A
-  | astate_A_ (S S' S'' : Type) : AState_ ((S * S') * S'') (S * (S' * S'')) unit
-  | astate_A'_ (S S' S'' : Type) : AState_ (S * (S' * S'')) ((S * S') * S'') unit
-  | astate_C_ (S S' : Type) : AState_ (S * S') (S' * S) unit
+      AState Sr Sr' A -> AState (Sl * Sr) (Sl * Sr') A
+  | astate_A_ (S S' S'' : Type) : AState ((S * S') * S'') (S * (S' * S'')) unit
+  | astate_A'_ (S S' S'' : Type) : AState (S * (S' * S'')) ((S * S') * S'') unit
+  | astate_C_ (S S' : Type) : AState (S * S') (S' * S) unit
   | astate_GET_ (I : finType) (T : Type) :
-      'I_#|I| -> AState_ {ffun I -> T} {ffun I -> T} T
+      'I_#|I| -> AState {ffun I -> T} {ffun I -> T} T
   | astate_SET_ (I : finType) (T : Type) :
-      'I_#|I| -> T -> AState_ {ffun I -> T} {ffun I -> T} unit.
+      'I_#|I| -> T -> AState {ffun I -> T} {ffun I -> T} unit.
 
-Definition AState := AState_.
 Definition astate_ret {S A} a := @astate_ret_ S A a.
 Definition astate_bind {S S' S'' A B} := @astate_bind_ S S' S'' A B.
 Definition astate_frameL {Sl Sl' Sr A} := @astate_frameL_ Sl Sl' Sr A.
@@ -185,19 +199,22 @@ Definition astate_C {S S'} := @astate_C_ S S'.
 Definition astate_GET {I T} := @astate_GET_ I T.
 Definition astate_SET {I T} := @astate_SET_ I T.
 
-Definition run_AState_raw : forall S S' A, AState S S' A -> S -> A * S' :=
-  @AState__rect (fun S S' A _ => S -> A * S')
-  (* return *)  (fun _ _ a s => (a, s))
-  (* bind *)    (fun _ _ _ _ _ _ f _ g s => let (a, s') := f s in g a s')
-  (* frameL *)  (fun _ _ _ _ _ f '(sl, sr) =>
-                   let (a, sl') := f sl in (a, (sl', sr)))
-  (* frameR *)  (fun _ _ _ _ _ f '(sl, sr) =>
-                   let (a, sr') := f sr in (a, (sl, sr')))
-  (* A *)       (fun _ _ _ '(s, s', s'') => (tt, (s, (s', s''))))
-  (* A' *)      (fun _ _ _ '(s, (s', s'')) => (tt, (s, s', s'')))
-  (* C *)       (fun _ _ '(s, s') => (tt, (s', s)))
-  (* get *)     (fun _ _ i a => (a (fin_decode i), a))
-  (* set *)     (fun _ _ i x a => (tt, ffun_set (fin_decode i) x a)).
+Definition runt_AState (S S' A : Type) : Type := S -> A * S'.
+
+Definition run_AState_raw :
+  forall S S' A, AState S S' A -> runt_AState S S' A :=
+  @AState_rect (fun S S' A _ => S -> A * S')
+  (* return *) (fun _ _ a s => (a, s))
+  (* bind *)   (fun _ _ _ _ _ _ f _ g s => let (a, s') := f s in g a s')
+  (* frameL *) (fun _ _ _ _ _ f '(sl, sr) =>
+                  let (a, sl') := f sl in (a, (sl', sr)))
+  (* frameR *) (fun _ _ _ _ _ f '(sl, sr) =>
+                  let (a, sr') := f sr in (a, (sl, sr')))
+  (* A *)      (fun _ _ _ '(s, s', s'') => (tt, (s, (s', s''))))
+  (* A' *)     (fun _ _ _ '(s, (s', s'')) => (tt, (s, s', s'')))
+  (* C *)      (fun _ _ '(s, s') => (tt, (s', s)))
+  (* get *)    (fun _ _ i a => (a (fin_decode i), a))
+  (* set *)    (fun _ _ i x a => (tt, ffun_set (fin_decode i) x a)).
 
 Definition run_AState
            (S : copyType) (S' A : Type) (m : AState S S' A) (s : S) : A * S' :=
@@ -205,7 +222,7 @@ Definition run_AState
 
 Lemma run_AStateE_ret (S : copyType) (A : Type) (a : A) (s : S) :
   run_AState (astate_ret a) s = (a, s).
-Proof. by rewrite /run_AState /= copyE. Qed.
+Proof. by rewrite /run_AState copyE. Qed.
 
 Lemma run_AStateE_bind
       (S S' : copyType) (S'' A B : Type)
@@ -222,40 +239,36 @@ Lemma run_AStateE_frameL
       (f : AState Sl Sl' A) (s : Sl * Sr) :
   run_AState (astate_frameL f) s =
   let (sl, sr) := s in let (a, sl') := run_AState f sl in (a, (sl', sr)).
-Proof. by case: s => sl sr; rewrite /run_AState /= !copyE. Qed.
+Proof. by case: s => sl sr; rewrite /run_AState !copyE. Qed.
 
 Lemma run_AStateE_frameR
       (Sl Sr : copyType) (Sr' : Type) (A : Type)
       (f : AState Sr Sr' A) (s : Sl * Sr) :
   run_AState (astate_frameR f) s =
   let (sl, sr) := s in let (a, sr') := run_AState f sr in (a, (sl, sr')).
-Proof. by case: s => sl sr; rewrite /run_AState /= !copyE. Qed.
+Proof. by case: s => sl sr; rewrite /run_AState !copyE. Qed.
 
 Lemma run_AStateE_A (S S' S'' : copyType) (s : S * S' * S'') :
   run_AState astate_A s = let: (s, s', s'') := s in (tt, (s, (s', s''))).
-Proof. by move: s => [[s s'] s'']; rewrite /run_AState /= copyE. Qed.
+Proof. by move: s => [[s s'] s'']; rewrite /run_AState copyE. Qed.
 
 Lemma run_AStateE_A' (S S' S'' : copyType) (s : S * (S' * S'')) :
   run_AState astate_A' s = let: (s, (s', s'')) := s in (tt, (s, s', s'')).
-Proof. by move: s => [s [s' s'']]; rewrite /run_AState /= copyE. Qed.
+Proof. by move: s => [s [s' s'']]; rewrite /run_AState copyE. Qed.
 
 Lemma run_AStateE_C (S S' : copyType) (s : S * S') :
   run_AState astate_C s = let (s, s') := s in (tt, (s', s)).
-Proof. by case: s => s s'; rewrite /run_AState /= copyE. Qed.
+Proof. by case: s => s s'; rewrite /run_AState copyE. Qed.
 
 Lemma run_AStateE_GET
       (I : finType) (T : Type) (s : {ffun I -> T}) (i : 'I_#|I|) :
   run_AState (astate_GET i) s = (s (fin_decode i), s).
-Proof. by rewrite /run_AState /= copyE. Qed.
+Proof. by rewrite /run_AState copyE. Qed.
 
 Lemma run_AStateE_SET
       (I : finType) (T : Type) (s : {ffun I -> T}) (i : 'I_#|I|) (x : T) :
   run_AState (astate_SET i x) s = (tt, ffun_set (fin_decode i) x s).
-Proof. by rewrite /run_AState /= copyE. Qed.
-
-End AState.
-
-Import AState.
+Proof. by rewrite /run_AState copyE. Qed.
 
 Notation astate_get i := (astate_GET (fin_encode i)).
 Notation astate_set i x := (astate_SET (fin_encode i) x).
@@ -270,6 +283,10 @@ Notation "x <- y ; f" :=
   (astate_bind y (fun x => f)) (at level 65, right associativity).
 Notation "y ;; f" :=
   (astate_bind y (fun _ => f)) (at level 65, right associativity).
+
+Definition AState' (T : Type) := AState T T.
+
+Global Opaque run_AState run_AState_raw.
 
 (* Arrangement *)
 
@@ -286,7 +303,7 @@ Definition astate_CA (S S' S'' : Type) :
 Section Iteration_ordinal.
 
 Variable (n : nat) (S : copyType) (A : Type)
-         (f : 'I_n -> A -> A) (g : 'I_n -> A -> AState S S A).
+         (f : 'I_n -> A -> A) (g : 'I_n -> A -> AState' S A).
 
 Fixpoint iterate_revord (i : nat) (x : A) : i <= n -> A :=
   match i with
@@ -306,7 +323,7 @@ have <-: i' = Ordinal H by apply val_inj.
 by rewrite rev_cons -cats1 foldr_cat /= -(IH (ltnW H)).
 Qed.
 
-Fixpoint miterate_revord (i : nat) (x : A) : i <= n -> AState S S A :=
+Fixpoint miterate_revord (i : nat) (x : A) : i <= n -> AState' S A :=
   match i with
     | 0 => fun _ => astate_ret x
     | i'.+1 =>
@@ -343,7 +360,7 @@ by rewrite -{1}(addn1 i) iota_add add0n /=
 Qed.
 
 Variable (T : finType) (S : copyType) (A : Type)
-         (f : T -> A -> A) (g : T -> A -> AState S S A).
+         (f : T -> A -> A) (g : T -> A -> AState' S A).
 
 Definition iterate_fin (x : A) : A :=
   iterate_revord (fun i x => f (raw_fin_decode (rev_ord i)) x) x (leqnn $|T|).
@@ -363,7 +380,7 @@ by rewrite /iterate_revfin iterate_revord_eq
            enumT unlock ord_enumE [X in _ = X]foldr_map.
 Qed.
 
-Definition miterate_fin (x : A) : AState S S A :=
+Definition miterate_fin (x : A) : AState' S A :=
   miterate_revord (fun i => g (raw_fin_decode (rev_ord i))) x (leqnn $|T|).
 
 Lemma run_miterate_fin (x : A) (s : S) :
@@ -375,7 +392,7 @@ rewrite /miterate_fin run_miterate_revord -(revK (enum T)) enumT unlock
 by elim: (enum _) => //= i xs ->; case: (foldr _ _ _).
 Qed.
 
-Definition miterate_revfin (x : A) : AState S S A :=
+Definition miterate_revfin (x : A) : AState' S A :=
   miterate_revord (fun i => g (raw_fin_decode i)) x (leqnn $|T|).
 
 Lemma run_miterate_revfin (x : A) (s : S) :
@@ -391,7 +408,7 @@ End Iteration_finType.
 Set Printing Width 79.
 
 Definition swap (I : finType) {A : Type} (i j : I) :
-  AState {ffun I -> A} {ffun I -> A} unit :=
+  AState' {ffun I -> A} unit :=
   x <- astate_get i; y <- astate_get j; astate_set i y;; astate_set j x.
 
 Lemma run_swap (I : finType) (A : Type) (i j : I) (f : {ffun I -> A}) :
@@ -410,7 +427,7 @@ Qed.
 Global Opaque swap.
 
 Definition SWAP (I : finType) {A : Type} (i j : 'I_#|I|) :
-  AState {ffun I -> A} {ffun I -> A} unit :=
+  AState' {ffun I -> A} unit :=
   x <- astate_GET i; y <- astate_GET j; astate_SET i y;; astate_SET j x.
 
 Lemma run_SWAP (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
