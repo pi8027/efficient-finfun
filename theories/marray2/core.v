@@ -284,7 +284,7 @@ Notation "x <- y ; f" :=
 Notation "y ;; f" :=
   (astate_bind y (fun _ => f)) (at level 65, right associativity).
 
-Definition AState' (T : Type) := AState T T.
+Notation AState' T A := (AState T T A).
 
 Global Opaque run_AState run_AState_raw.
 
