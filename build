@@ -69,25 +69,27 @@ pushd ocaml
     echo "module Presburger = Presburger_$f;;" > def.ml
 	ocamlbuild -build-dir _presburger_$f -no-hygiene -just-plugin
     ocamlbuild -build-dir _presburger_$f -no-hygiene -package unix \
+      -tag debug presburger_main.byte
+    ocamlbuild -build-dir _presburger_$f -no-hygiene -package unix \
+      presburger_main.native \
       -tag 'optimize(3)' \
       -tag 'remove_unused_arguments' \
       -tag 'unbox_closures' \
-      -tag 'inlining_report' \
-	  -tag 'dflambda-verbose' \
-      presburger_main.native
-    #ocamlbuild -build-dir _presburger_$f -libs unix -ocamlc ocamlcp presburger_main.byte
+      -tag 'inlining_report'
   done
 
   for f in matrix wuf quicksort floyd_warshall; do
 	ocamlbuild -build-dir _$f -no-hygiene -just-plugin
     ocamlbuild -build-dir _$f -no-hygiene -package unix \
+      -tag debug ${f}_main.byte
+    ocamlbuild -build-dir _$f -no-hygiene -package unix \
+      ${f}_main.native \
       -tag 'optimize(3)' \
+      -tag 'optimization_rounds(8)' \
       -tag 'remove_unused_arguments' \
       -tag 'unbox_closures' \
       -tag 'inlining_report' \
-	  -tag 'dflambda-verbose' \
-      ${f}_main.native
-    #ocamlbuild -build-dir _$f -libs unix -ocamlc ocamlcp ${f}_main.byte
+	  #-tag 'dflambda-verbose'
   done
 
 popd # ocaml
