@@ -21,9 +21,9 @@ let rec termgen = function
 ;;
 
 let xs =
-  List.map (fun n -> "s" ^ string_of_int n) (iota 0 64)
+  List.map (fun n -> "s" ^ string_of_int n) (iota 0 512)
 in
-print_string  "Example ex (A : eqType) (";
+print_string  "Example ex1 (A : eqType) (";
 print_string  (String.concat " " xs);
 print_endline ": seq A) :";
 print_string  "  perm_eq ";
