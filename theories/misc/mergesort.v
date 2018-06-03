@@ -4,8 +4,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Definition perm_eq' := @perm_eq.
-
 Section Perm.
 
 Variable (A : eqType) (le : A -> A -> bool).
@@ -90,7 +88,7 @@ Section PermSyntax.
 Variable (A : Type).
 
 Inductive Seq : Type :=
-  | SeqEmbed  of seq A
+  | SeqAtom   of seq A
   | SeqNil
   | SeqCons   of A & Seq
   | SeqRcons  of Seq & A
@@ -100,7 +98,7 @@ Inductive Seq : Type :=
 
 Fixpoint denote_Seq (xs : Seq) : seq A :=
   match xs with
-    | SeqEmbed xs => xs
+    | SeqAtom xs => xs
     | SeqNil => [::]
     | SeqCons x xs => x :: denote_Seq xs
     | SeqRcons xs x => rcons (denote_Seq xs) x
@@ -112,7 +110,7 @@ Fixpoint denote_Seq (xs : Seq) : seq A :=
 Fixpoint norm_Seq (r : bool) (xs : Seq) (acc : seq (bool * seq A)) :
   seq (bool * seq A) :=
   match xs with
-    | SeqEmbed xs => (r, xs) :: acc
+    | SeqAtom xs => (r, xs) :: acc
     | SeqNil => acc
     | SeqCons x xs =>
       if r
@@ -159,35 +157,29 @@ by elim: (norm_Seq _ _ _) => //= {xs} -[r xs] ys /=; rewrite -(perm_cat2l xs);
 Qed.
 
 Lemma perm_Seq_flatten (xs ys : Seq A) :
-  perm_eq' (denote_Seq xs) (denote_Seq ys) =
-  perm_eq' (flatten (map snd (norm_Seq false xs [::])))
-           (flatten (map snd (norm_Seq false ys [::]))).
+  perm_eq (denote_Seq xs) (denote_Seq ys) =
+  perm_eq (flatten (map snd (norm_Seq false xs [::])))
+          (flatten (map snd (norm_Seq false ys [::]))).
 Proof.
-rewrite /perm_eq'; apply/idP; case: ifP;
-  last (move/negP => H H0; apply/H => {H}; move: H0); move => H.
-- by rewrite (perm_eqlP (norm_Seq_perm _))
-             (perm_eqlP H) perm_eq_sym norm_Seq_perm.
-- by rewrite -(perm_eqrP (norm_Seq_perm ys))
-             -(perm_eqrP H) perm_eq_sym norm_Seq_perm.
+by rewrite (perm_eqlP (norm_Seq_perm _)) (perm_eqrP (norm_Seq_perm _)).
 Qed.
 
 Lemma perm_fm_sort_elim (f : nat -> seq A) (xs ys : seq nat) :
-  perm_eq' (flatten (map f xs)) (flatten (map f ys)) =
+  perm_eq (flatten (map f xs)) (flatten (map f ys)) =
   let (xs', ys') := perm_elim geq (sort geq xs) (sort geq ys) in
-  perm_eq' (flatten (map f xs')) (flatten (map f ys')).
+  perm_eq (flatten (map f xs')) (flatten (map f ys')).
 Proof.
-rewrite /perm_eq'.
 case: (perm_elim _ _ _) (perm_elim_perm geq (sort geq xs) (sort geq ys))
   => xs' ys' [].
 rewrite !perm_sort => /(perm_map f) /perm_flatten /perm_eqlP ->
-                       /(perm_map f) /perm_flatten /perm_eqrP ->.
+                      /(perm_map f) /perm_flatten /perm_eqrP ->.
 by rewrite !map_cat !flatten_cat perm_cat2l.
 Qed.
 
 End PermReflection.
 
 Ltac seqReify xs :=
-  match xs with
+  lazymatch xs with
     | @nil ?A => constr:(SeqNil A)
     | ?x :: ?xs => let xs' := seqReify xs in constr:(SeqCons x xs')
     | rcons ?xs ?x => let xs' := seqReify xs in constr:(SeqRcons xs' x)
@@ -200,7 +192,7 @@ Ltac seqReify xs :=
       let ys' := seqReify ys in
       constr:(SeqCatrev xs' ys')
     | rev ?xs => let xs' := seqReify xs in constr:(SeqRev xs')
-    | _ => constr:(SeqEmbed xs)
+    | _ => constr:(SeqAtom xs)
   end.
 
 Ltac autoperm :=
@@ -223,26 +215,26 @@ Ltac autoperm :=
     let ys' := seqReify ys in
     have Heq := erefl (@perm_eq A xs ys);
     pose f := (fun n : nat => [::] : seq A);
-    rewrite -{1}/perm_eq'
-            (_ : perm_eq' xs ys = perm_eq' (denote_Seq xs') (denote_Seq ys')) //
-            perm_Seq_flatten ![map snd (norm_Seq false _ [::])]/= in Heq;
-    match goal with [Heq : perm_eq' (flatten ?xs') (flatten ?ys') = _ |- _] =>
+    rewrite [X in X = _](_ : perm_eq xs ys = perm_eq (denote_Seq xs') (denote_Seq ys')) //
+            [X in X = _]perm_Seq_flatten ![map snd (norm_Seq false _ [::])]/= in Heq;
+    lazymatch goal with Heq : perm_eq (flatten ?xs') (flatten ?ys') = _ |- _ =>
       num_rec Heq f xs'; num_rec Heq f ys'
     end;
     rewrite -/(map f [::]) -?(map_cons f) perm_fm_sort_elim in Heq;
     let pe := fresh "pe" in set pe := perm_elim _ _ _ in Heq;
-    native_compute in pe; subst pe; rewrite [X in X = _]/= ?[in X in X = _]cats0 in Heq
+    native_compute in pe; subst pe;
+    rewrite [X in X = _]/= ?[in X in X = _]cats0 in Heq
   in
   repeat
   (let Heq := fresh "H" in
    let f := fresh "f" in
    match goal with
-     | [|- context [@perm_eq ?A ?xs ?ys]] =>
+     | |- context [@perm_eq ?A ?xs ?ys] =>
        autoperm_sub Heq f A xs ys; rewrite -{}Heq {f}
-     | [H : context [@perm_eq ?A ?xs ?ys] |- _] =>
+     | H : context [@perm_eq ?A ?xs ?ys] |- _ =>
        autoperm_sub Heq f A xs ys; rewrite -{}Heq {f} in H
    end);
-  unfold perm_eq' in *; try by [].
+  try by [].
 
 Module PermExamples.
 
@@ -251,7 +243,7 @@ Example ex1 (A : eqType) (x y z : A) (xs ys zs zs' : seq A) :
   perm_eq (x :: xs ++ y :: ys ++ z :: zs)
           (rev zs' ++ [:: x; y] ++ ys ++ z :: rev xs).
 Proof.
-Time autoperm.
+autoperm.
 Qed.
 
 Example ex2 (A : eqType) (xs ys zs xs' ys' zs' : seq A) :
