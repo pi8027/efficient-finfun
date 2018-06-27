@@ -1,10 +1,8 @@
-Require Import all_ssreflect.
+Require Import all_ssreflect Coq.quote.Quote.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-
-(* Indices for reflexive tactics *)
 
 Inductive rindex : Type := rindex_L of rindex | rindex_C | rindex_R of rindex.
 
@@ -54,7 +52,35 @@ Qed.
 Lemma leq_rindex_total (x y : rindex) : leq_rindex x y || leq_rindex y x.
 Proof. by elim: x y => [x IH | | x IH] []. Qed.
 
-Ltac myquate F X C NIL :=
+(*
+Lemma eqindexP : Equality.axiom index_eq.
+Proof. by move => x y; apply: (iffP idP) => [/index_eq_prop | <-]; elim: x. Qed.
+
+Canonical index_eqMixin := EqMixin eqindexP.
+Canonical index_eqType := Eval hnf in EqType index index_eqMixin.
+
+Fixpoint leq_index (x y : index) : bool :=
+  match x, y with
+    | End_idx, _ | Left_idx _, Right_idx _ => true
+    | Left_idx x', Left_idx y' | Right_idx x', Right_idx y' => leq_index x' y'
+    | _, _ => false
+  end.
+
+Lemma leq_index_refl : reflexive leq_index.
+Proof. by elim. Qed.
+
+Lemma leq_index_trans : transitive leq_index.
+Proof. by elim => [x IH | x IH |] [y | y |] [z | z |] //=; apply IH. Qed.
+
+Lemma leq_index_antisym (x y : index) :
+  leq_index x y -> leq_index y x -> x = y.
+Proof. by elim: x y => [x IH | x IH |] [y | y |] //= *; f_equal; apply IH. Qed.
+
+Lemma leq_index_total (x y : index) : leq_index x y || leq_index y x.
+Proof. by elim: x y => [x IH | x IH |] []. Qed.
+*)
+
+Ltac myquote F X C NIL :=
   let C' := fresh "C" in set C' := C;
   let rec quote_fold n i :=
     fold (F i) in X;
