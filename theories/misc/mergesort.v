@@ -1,4 +1,4 @@
-Require Import all_ssreflect all_algebra.
+Require Import all_ssreflect all_algebra reflection_base.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -12,16 +12,10 @@ Definition condrev (r : bool) (xs : seq A) :=
   if r then rev xs else xs.
 
 Lemma perm_catrev (xs ys : seq A) : perm_eq (catrev xs ys) (xs ++ ys).
-Proof.
-by elim: xs ys => //= x xs IH ys; apply (perm_eq_trans (IH _));
-  rewrite -cat_rcons -cat_cons perm_cat2r perm_rcons.
-Qed.
-
-Lemma perm_rev (xs : seq A) : perm_eq (rev xs) xs.
-Proof. by rewrite -{2}(cats0 xs) perm_catrev. Qed.
+Proof. by rewrite catrevE perm_cat2r perm_eq_sym perm_eq_rev. Qed.
 
 Lemma perm_condrev (r : bool) (xs : seq A) : perm_eq (condrev r xs) xs.
-Proof. by case: r => //=; apply perm_rev. Qed.
+Proof. by case: r => //=; rewrite perm_eq_sym perm_eq_rev. Qed.
 
 Lemma count_flatten (xss : seq (seq A)) x:
   count x (flatten xss) = \sum_(xs <- xss) (count x xs).
@@ -83,167 +77,232 @@ Qed.
 
 End Perm.
 
-Section PermSyntax.
+Fixpoint flatten_map (A B : Type) (f : A -> seq B) (xs : seq A) : seq B :=
+  if xs is x :: xs' then f x ++ flatten_map f xs' else [::].
 
-Variable (A : Type).
+Lemma flatten_mapE (A B : Type) (f : A -> seq B) (xs : seq A) :
+  flatten_map f xs = flatten (map f xs).
+Proof. by elim: xs => //= x xs <-. Qed.
+
+Lemma perm_flatten_map (A B : eqType) (f : A -> seq B) (xs ys : seq A) :
+  perm_eq xs ys -> perm_eq (flatten_map f xs) (flatten_map f ys).
+Proof. by rewrite !flatten_mapE => H; apply/perm_flatten/perm_map. Qed.
 
 Inductive Seq : Type :=
-  | SeqAtom   of seq A
+  | SeqAtom   of rindex
   | SeqNil
-  | SeqCons   of A & Seq
-  | SeqRcons  of Seq & A
   | SeqCat    of Seq & Seq
   | SeqCatrev of Seq & Seq
   | SeqRev    of Seq.
 
-Fixpoint denote_Seq (xs : Seq) : seq A :=
+Fixpoint denote_Seq (A : Type) (f : rindex -> seq A) (xs : Seq) : seq A :=
   match xs with
-    | SeqAtom xs => xs
+    | SeqAtom xs => f xs
     | SeqNil => [::]
-    | SeqCons x xs => x :: denote_Seq xs
-    | SeqRcons xs x => rcons (denote_Seq xs) x
-    | SeqCat xs ys => denote_Seq xs ++ denote_Seq ys
-    | SeqCatrev xs ys => catrev (denote_Seq xs) (denote_Seq ys)
-    | SeqRev xs => rev (denote_Seq xs)
+    | SeqCat xs ys => denote_Seq f xs ++ denote_Seq f ys
+    | SeqCatrev xs ys => catrev (denote_Seq f xs) (denote_Seq f ys)
+    | SeqRev xs => rev (denote_Seq f xs)
   end.
 
-Fixpoint norm_Seq (r : bool) (xs : Seq) (acc : seq (bool * seq A)) :
-  seq (bool * seq A) :=
+Fixpoint denote_eqs1 (A : eqType) (f : rindex -> seq A)
+                     (xs : seq (bool * Seq * Seq)) : Type :=
   match xs with
-    | SeqAtom xs => (r, xs) :: acc
-    | SeqNil => acc
-    | SeqCons x xs =>
-      if r
-        then norm_Seq true xs ((false, [:: x]) :: acc)
-        else (false, [:: x]) :: norm_Seq false xs acc
-    | SeqRcons xs x =>
-      if r
-        then (false, [:: x]) :: norm_Seq true xs acc
-        else norm_Seq false xs ((false, [:: x]) :: acc)
-    | SeqCat xs ys =>
-      if r
-        then norm_Seq true ys (norm_Seq true xs acc)
-        else norm_Seq false xs (norm_Seq false ys acc)
-    | SeqCatrev xs ys =>
-      if r
-        then norm_Seq true ys (norm_Seq false xs acc)
-        else norm_Seq true xs (norm_Seq false ys acc)
-    | SeqRev xs => norm_Seq (~~ r) xs acc
+    | [::] => unit
+    | (peq, ys, zs) :: xs' =>
+      denote_eqs1 f xs' * (peq = perm_eq (denote_Seq f ys) (denote_Seq f zs))
   end.
 
-End PermSyntax.
+Fixpoint denote_eqs2 (A : eqType) (f : rindex -> seq A)
+                     (xs : seq (bool * seq rindex * seq rindex)) : Type :=
+  match xs with
+    | [::] => unit
+    | [:: (peq, ys, zs)] => peq = perm_eq (flatten_map f ys) (flatten_map f zs)
+    | (peq, ys, zs) :: xs' =>
+      denote_eqs2 f xs' * (peq = perm_eq (flatten_map f ys) (flatten_map f zs))
+  end.
 
-Section PermReflection.
+Fixpoint sort_Seq_rec (xs : Seq) (xss : seq (seq rindex)) : seq (seq rindex) :=
+  match xs with
+    | SeqAtom i => merge_sort_push leq_rindex [:: i] xss
+    | SeqNil => xss
+    | SeqCat xs ys | SeqCatrev xs ys => sort_Seq_rec ys (sort_Seq_rec xs xss)
+    | SeqRev xs => sort_Seq_rec xs xss
+  end.
 
-Variable (A : eqType).
+Definition sort_Seq (xs : Seq) : seq rindex :=
+  merge_sort_pop leq_rindex [::] (sort_Seq_rec xs [::]).
 
-Lemma norm_SeqE (r : bool) (xs : Seq A) (acc : seq (bool * seq A)) :
-  flatten [seq condrev e.1 e.2 | e <- norm_Seq r xs acc] =
-  condrev r (denote_Seq xs) ++ flatten [seq condrev e.1 e.2 | e <- acc].
+Definition perm_eqs_norm :
+  seq (bool * Seq * Seq) -> seq (bool * seq rindex * seq rindex) :=
+  map (fun '(peq, xs, ys) =>
+         let (xs', ys') := perm_elim leq_rindex (sort_Seq xs) (sort_Seq ys) in
+         (peq, xs', ys')).
+
+Section Sort_ext.
+
+Variable (T : eqType) (leT : rel T).
+
+Lemma merge_sort_push_perm (xs : seq T) (yss : seq (seq T)) :
+  perm_eq (flatten (merge_sort_push leT xs yss)) (xs ++ flatten yss).
 Proof.
-by elim: xs r acc =>
-  [xs || x xs IH | xs IH x | xs IHl ys IHr | xs IHl ys IHr | xs IH] [] acc //=;
-  (rewrite IH || rewrite ?(IHl, IHr));
-  rewrite ?(catrevE, rev_cons, rev_rcons, rev_cat, revK, cat_rcons, catA) //=.
+elim: yss xs => //= -[| y ys] yss IH xs //=.
+by rewrite (perm_eqlP (IH _)) -cat_cons catA perm_cat2r perm_merge.
 Qed.
 
-Lemma norm_Seq_perm (xs : Seq A) :
-  perm_eq (denote_Seq xs) (flatten (map snd (norm_Seq false xs [::]))).
+Lemma merge_sort_pop_perm (xs : seq T) (yss : seq (seq T)) :
+  perm_eq (merge_sort_pop leT xs yss) (xs ++ flatten yss).
 Proof.
-rewrite -(cats0 (denote_Seq xs)) -/(condrev false (denote_Seq xs))
-        (_ : [::] = flatten [seq condrev e.1 e.2 | e <- [::]]) // -norm_SeqE.
-by elim: (norm_Seq _ _ _) => //= {xs} -[r xs] ys /=; rewrite -(perm_cat2l xs);
-  apply perm_eq_trans; rewrite perm_cat2r perm_condrev.
+elim: yss xs => [| ys yss IH] xs; rewrite ?cats0 //=.
+by rewrite (perm_eqlP (IH _)) catA perm_cat2r perm_merge.
 Qed.
 
-Lemma perm_Seq_flatten (xs ys : Seq A) :
-  perm_eq (denote_Seq xs) (denote_Seq ys) =
-  perm_eq (flatten (map snd (norm_Seq false xs [::])))
-          (flatten (map snd (norm_Seq false ys [::]))).
+End Sort_ext.
+
+Lemma sort_Seq_perm (A : eqType) (f : rindex -> seq A) (xs : Seq) :
+  perm_eq (flatten_map f (sort_Seq xs)) (denote_Seq f xs).
 Proof.
-by rewrite (perm_eqlP (norm_Seq_perm _)) (perm_eqrP (norm_Seq_perm _)).
+move: (merge_sort_pop_perm leq_rindex [::] (sort_Seq_rec xs [::])).
+rewrite /sort_Seq => /= /(perm_flatten_map f) /perm_eqlP ->.
+rewrite -[denote_Seq _ _]cats0 -[X in _ ++ X]/(flatten_map f (flatten [::])).
+elim: xs [::] => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
+  try rewrite -?(perm_eqrP (IHy _)).
+- by move: (merge_sort_push_perm leq_rindex [:: i] xss)
+    => /= /(perm_flatten_map f) /perm_eqlP ->.
+- by rewrite (perm_eqlP (IHy _)) perm_eq_sym -catA perm_catCA perm_cat2l
+             perm_eq_sym IHx.
+- by rewrite (perm_eqlP (IHy _)) perm_eq_sym catrevE -catA perm_catCA perm_cat2l
+             perm_eq_sym (perm_eqlP (IHx _)) perm_cat2r perm_eq_rev.
+- by rewrite (perm_eqlP (IH _)) perm_cat2r perm_eq_rev.
 Qed.
 
-Lemma perm_fm_sort_elim (f : nat -> seq A) (xs ys : seq nat) :
-  perm_eq (flatten (map f xs)) (flatten (map f ys)) =
-  let (xs', ys') := perm_elim geq (sort geq xs) (sort geq ys) in
-  perm_eq (flatten (map f xs')) (flatten (map f ys')).
+Lemma perm_eqs_normE
+      (A : eqType) (f : rindex -> seq A) (xs : seq (bool * Seq * Seq)) :
+  denote_eqs1 f xs -> denote_eqs2 f (perm_eqs_norm xs).
 Proof.
-case: (perm_elim _ _ _) (perm_elim_perm geq (sort geq xs) (sort geq ys))
-  => xs' ys' [].
-rewrite !perm_sort => /(perm_map f) /perm_flatten /perm_eqlP ->
-                      /(perm_map f) /perm_flatten /perm_eqrP ->.
-by rewrite !map_cat !flatten_cat perm_cat2l.
+by elim: xs => [| [[b ys] zs] [| x xs] IH] //=;
+  case: (perm_elim _ _ _) (perm_elim_perm leq_rindex (sort_Seq ys) (sort_Seq zs))
+    => /= ys' zs' [];
+  rewrite -(perm_eqlP (sort_Seq_perm _ _)) -(perm_eqrP (sort_Seq_perm _ _)) =>
+    /(perm_flatten_map f) /perm_eqlP -> /(perm_flatten_map f) /perm_eqrP ->;
+  rewrite !flatten_mapE !map_cat !flatten_cat perm_cat2l;
+  case => // Hl Hr; split => //; apply IH.
 Qed.
 
-End PermReflection.
-
-Ltac seqReify xs :=
+Ltac tag_seq tag xs :=
   lazymatch xs with
-    | @nil ?A => constr:(SeqNil A)
-    | ?x :: ?xs => let xs' := seqReify xs in constr:(SeqCons x xs')
-    | rcons ?xs ?x => let xs' := seqReify xs in constr:(SeqRcons xs' x)
+    | @nil ?A => constr:(xs)
+    | ?x :: ?xs => let xs' := tag_seq tag xs in constr:(tag [:: x] ++ xs')
+    | rcons ?xs ?x => let xs' := tag_seq tag xs in constr:(xs' ++ tag [:: x])
     | ?xs ++ ?ys =>
-      let xs' := seqReify xs in
-      let ys' := seqReify ys in
-      constr:(SeqCat xs' ys')
+      let xs' := tag_seq tag xs in
+      let ys' := tag_seq tag ys in
+      constr:(xs' ++ ys')
     | catrev ?xs ?ys =>
-      let xs' := seqReify xs in
-      let ys' := seqReify ys in
-      constr:(SeqCatrev xs' ys')
-    | rev ?xs => let xs' := seqReify xs in constr:(SeqRev xs')
-    | _ => constr:(SeqAtom xs)
+      let xs' := tag_seq tag xs in
+      let ys' := tag_seq tag ys in
+      constr:(catrev xs' ys')
+    | rev ?xs => let xs' := tag_seq tag xs in constr:(rev xs')
+    | _ => constr:(tag xs)
   end.
 
-Ltac autoperm :=
-  let X := fresh "X" in
-  let rec num_rec Heq f xss :=
-    match xss with
-      | [::] => idtac
-      | ?xs :: ?xss =>
-        let f' := fresh "f" in
-        rename f into f';
-        pose f := (fun n : nat => if n is n'.+1 then f' n' else xs);
-        rewrite [in X in X = _](_ : xs = f 0) //
-                ?[in X in X = _](_ : forall n : nat, f' n = f n.+1) // in Heq;
-        subst f'; num_rec Heq f xss
-      | _ :: ?xss => num_rec Heq f xss
+Ltac tag_permeqs A tag eqs :=
+  let tag_permeq xs ys :=
+    let xs' := tag_seq tag xs in
+    let ys' := tag_seq tag ys in constr: (perm_eq xs' ys')
+  in
+  let rec tag_rec eqs' :=
+    let peq := fresh "peq" in
+    lazymatch goal with
+      | |- context [@perm_eq A ?xs ?ys] =>
+        let peq' := tag_permeq xs ys in
+        set peq := (perm_eq _ _); tag_rec (eqs' * (peq = peq'))%type
+      | H : context [@perm_eq A ?xs ?ys] |- _ =>
+        let peq' := tag_permeq xs ys in
+        set peq := (perm_eq _ _) in H; tag_rec (eqs' * (peq = peq'))%type
+      | _ =>
+        set eqs := eqs'
     end
   in
-  let autoperm_sub Heq f A xs ys :=
-    let xs' := seqReify xs in
-    let ys' := seqReify ys in
-    have Heq := erefl (@perm_eq A xs ys);
-    pose f := (fun n : nat => [::] : seq A);
-    rewrite [X in X = _](_ : perm_eq xs ys = perm_eq (denote_Seq xs') (denote_Seq ys')) //
-            [X in X = _]perm_Seq_flatten ![map snd (norm_Seq false _ [::])]/= in Heq;
-    lazymatch goal with Heq : perm_eq (flatten ?xs') (flatten ?ys') = _ |- _ =>
-      num_rec Heq f xs'; num_rec Heq f ys'
-    end;
-    rewrite -/(map f [::]) -?(map_cons f) perm_fm_sort_elim in Heq;
-    let pe := fresh "pe" in set pe := perm_elim _ _ _ in Heq;
-    native_compute in pe; subst pe;
-    rewrite [X in X = _]/= ?[in X in X = _]cats0 in Heq
+  tag_rec unit.
+
+Ltac reify_eqs f E :=
+  let rec reify e :=
+    lazymatch e with
+      | f ?i => constr: (SeqAtom i)
+      | @nil _ => constr: (SeqNil)
+      | ?el ++ ?er =>
+        let el' := reify el in
+        let er' := reify er in
+        constr: (SeqCat el' er')
+      | catrev ?el ?er =>
+        let el' := reify el in
+        let er' := reify er in
+        constr: (SeqCatrev el' er')
+      | rev ?e' => let e'' := reify e' in constr: (SeqRev e'')
+    end
   in
+  lazymatch E with
+    | (?E' * (?peq = perm_eq ?xs ?ys))%type =>
+      let E'' := reify_eqs f E' in
+      let xs' := reify xs in
+      let ys' := reify ys in
+      constr: ((peq, xs', ys') :: E'')
+    | unit =>
+      constr: (@nil (bool * Seq * Seq))
+  end.
+
+Ltac perm_norm A f tag eqs :=
+  myquote f eqs tag (@nil A);
+  unfold tag in eqs;
+  lazymatch goal with
+    | eqs := ?eqs' |- _ =>
+      let eqs'' := reify_eqs f eqs' in
+      clear tag eqs;
+      have/perm_eqs_normE eqs: denote_eqs1 f eqs'' by repeat
+        split;
+        lazymatch goal with
+          |- ?peq = _ => rewrite /peq -?cats1; reflexivity
+        end
+  end;
+  cbv [perm_eqs_norm map] in eqs;
   repeat
-  (let Heq := fresh "H" in
-   let f := fresh "f" in
-   match goal with
-     | |- context [@perm_eq ?A ?xs ?ys] =>
-       autoperm_sub Heq f A xs ys; rewrite -{}Heq {f}
-     | H : context [@perm_eq ?A ?xs ?ys] |- _ =>
-       autoperm_sub Heq f A xs ys; rewrite -{}Heq {f} in H
-   end);
+     (let pe := fresh "pe" in set pe := perm_elim _ _ _ in eqs;
+     native_compute in pe; subst pe);
+  cbv [denote_eqs2] in eqs.
+
+Ltac autoperm :=
+  let perm_eq' := fresh "perm_eq'" in pose perm_eq' := @perm_eq;
+  let do_autoperm A :=
+    let f := fresh "f" in pose f := tt;
+    let tag := fresh "tag" in pose tag := (fun x : seq A => x);
+    let eqs := fresh "eqs" in tag_permeqs A tag eqs;
+    perm_norm A f tag eqs;
+    cbv [flatten_map] in eqs;
+    rewrite ?cats0 /= {f} in eqs;
+    fold perm_eq' in eqs;
+    move: eqs;
+    repeat lazymatch goal with
+      | |- _ * _ -> _ => case
+      | |- ?peq = _ -> _ =>
+        let H := fresh "H" in
+        move: peq => peq H; subst peq
+    end
+  in
+  repeat lazymatch goal with
+    | |- context [@perm_eq ?A ?xs ?ys] => do_autoperm A
+    | H : context [@perm_eq ?A ?xs ?ys] |- _ => do_autoperm A
+  end;
+  subst perm_eq';
   try by [].
 
 Module PermExamples.
 
 Example ex1 (A : eqType) (x y z : A) (xs ys zs zs' : seq A) :
   perm_eq (xs ++ zs) (zs' ++ xs) ->
-  perm_eq (x :: xs ++ y :: ys ++ z :: zs)
+  perm_eq (rcons xs x ++ y :: ys ++ z :: zs)
           (rev zs' ++ [:: x; y] ++ ys ++ z :: rev xs).
 Proof.
-autoperm.
+Time autoperm.
 Qed.
 
 Example ex2 (A : eqType) (xs ys zs xs' ys' zs' : seq A) :

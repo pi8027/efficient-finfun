@@ -5,150 +5,91 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Inductive Seq : Type :=
-  | SeqAtom of rindex
-  | SeqNil
-  | SeqCat  of Seq & Seq
-  | SeqRev  of Seq.
-
-Fixpoint denote_Seq (A : Type) (f : rindex -> seq A) (xs : Seq) : seq A :=
-  match xs with
-    | SeqAtom xs => f xs
-    | SeqNil => [::]
-    | SeqCat xs ys => denote_Seq f xs ++ denote_Seq f ys
-    | SeqRev xs => rev (denote_Seq f xs)
-  end.
-
 Fixpoint sort_Seq_rec (xs : Seq) (xss : seq (seq rindex)) : seq (seq rindex) :=
   match xs with
     | SeqAtom i => merge_sort_push leq_rindex false [:: i] xss
     | SeqNil => xss
-    | SeqCat xs ys => sort_Seq_rec ys (sort_Seq_rec xs xss)
+    | SeqCat xs ys | SeqCatrev xs ys => sort_Seq_rec ys (sort_Seq_rec xs xss)
     | SeqRev xs => sort_Seq_rec xs xss
   end.
 
 Definition sort_Seq (xs : Seq) : seq rindex :=
   merge_sort_pop leq_rindex false [::] (sort_Seq_rec xs [::]).
 
+Definition perm_eqs_norm :
+  seq (bool * Seq * Seq) -> seq (bool * seq rindex * seq rindex) :=
+  map (fun '(peq, xs, ys) =>
+         let (xs', ys') := perm_elim leq_rindex (sort_Seq xs) (sort_Seq ys) in
+         (peq, xs', ys')).
+
 Lemma sort_Seq_perm (A : eqType) (f : rindex -> seq A) (xs : Seq) :
-  perm_eq (denote_Seq f xs) (flatten (map f (sort_Seq xs))).
+  perm_eq (flatten_map f (sort_Seq xs)) (denote_Seq f xs).
 Proof.
 move: (merge_sort_pop_perm leq_rindex false [::] (sort_Seq_rec xs [::])).
-rewrite /sort_Seq => /= /(perm_map f) /perm_flatten /perm_eqrP ->.
-rewrite -[denote_Seq _ _]cats0 -[[::]]/(flatten (map f (flatten [::]))).
-elim: xs [::] => [i | | xs IHx ys IHy | xs IH] xss //=;
-  try rewrite -?(perm_eqrP (IHy _)); autoperm.
+rewrite /sort_Seq => /= /(perm_flatten_map f) /perm_eqlP ->.
+rewrite -[denote_Seq _ _]cats0 -[X in _ ++ X]/(flatten_map f (flatten [::])).
+elim: xs [::] => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
+  try rewrite ?(perm_eqlP (IHy _)); autoperm.
 by move: (merge_sort_push_perm leq_rindex false [:: i] xss)
-  => /= /(perm_map f) /perm_flatten /perm_eqrP ->.
+  => /= /(perm_flatten_map f) /perm_eqlP ->.
 Qed.
 
-Lemma perm_eq_simpl (A : eqType) (f : rindex -> seq A) (xs ys : Seq) :
-  perm_eq (denote_Seq f xs) (denote_Seq f ys) =
-  let (xs', ys') := perm_elim leq_rindex (sort_Seq xs) (sort_Seq ys) in
-  perm_eq (flatten (map f xs')) (flatten (map f ys')).
+Lemma perm_eqs_normE
+      (A : eqType) (f : rindex -> seq A) (xs : seq (bool * Seq * Seq)) :
+  denote_eqs1 f xs -> denote_eqs2 f (perm_eqs_norm xs).
 Proof.
-case: (perm_elim _ _ _) (perm_elim_perm leq_rindex (sort_Seq xs) (sort_Seq ys))
-  => /= xs' ys' [].
-rewrite (perm_eqlP (sort_Seq_perm _ _)) (perm_eqrP (sort_Seq_perm _ _)) =>
-  /(perm_map f) /perm_flatten /perm_eqlP ->
-  /(perm_map f) /perm_flatten /perm_eqrP ->.
-by rewrite !map_cat !flatten_cat perm_cat2l.
+by elim: xs => [| [[b ys] zs] [| x xs] IH] //=;
+  case: (perm_elim _ _ _) (perm_elim_perm leq_rindex (sort_Seq ys) (sort_Seq zs))
+    => /= ys' zs' [];
+  rewrite -(perm_eqlP (sort_Seq_perm _ _)) -(perm_eqrP (sort_Seq_perm _ _)) =>
+    /(perm_flatten_map f) /perm_eqlP -> /(perm_flatten_map f) /perm_eqrP ->;
+  rewrite !flatten_mapE !map_cat !flatten_cat perm_cat2l;
+  case => // Hl Hr; split => //; apply IH.
 Qed.
 
-Ltac tag_seq tag xs :=
-  lazymatch xs with
-    | @nil ?A => constr:(xs)
-    | ?x :: ?xs => let xs' := tag_seq tag xs in constr:(tag [:: x] ++ xs')
-    | rcons ?xs ?x => let xs' := tag_seq tag xs in constr:(xs' ++ tag [:: x])
-    | ?xs ++ ?ys =>
-      let xs' := tag_seq tag xs in
-      let ys' := tag_seq tag ys in
-      constr:(xs' ++ ys')
-    | catrev ?xs ?ys =>
-      let xs' := tag_seq tag xs in
-      let ys' := tag_seq tag ys in
-      constr:(rev xs' ++ ys')
-    | rev ?xs => let xs' := tag_seq tag xs in constr:(rev xs')
-    | _ => constr:(tag xs)
-  end.
-
-Ltac tag_permeqs A tag eqs :=
-  let tag_permeq xs ys :=
-    let xs' := tag_seq tag xs in
-    let ys' := tag_seq tag ys in constr: (perm_eq xs' ys')
-  in
-  let rec tag_rec eqs' :=
-    let peq := fresh "peq" in
-    lazymatch goal with
-      | |- context [@perm_eq A ?xs ?ys] =>
-        let peq' := tag_permeq xs ys in
-        set peq := (perm_eq _ _); tag_rec (eqs' * (peq = peq'))%type
-      | H : context [@perm_eq A ?xs ?ys] |- _ =>
-        let peq' := tag_permeq xs ys in
-        set peq := (perm_eq _ _) in H; tag_rec (eqs' * (peq = peq'))%type
-      | _ =>
-        lazymatch eqs' with context eqs'c [(unit * ?peq)%type] =>
-          let eqs' := context eqs'c [peq] in
-          set eqs := eqs'
+Ltac perm_norm A f tag eqs :=
+  myquote f eqs tag (@nil A);
+  unfold tag in eqs;
+  lazymatch goal with
+    | eqs := ?eqs' |- _ =>
+      let eqs'' := reify_eqs f eqs' in
+      clear tag eqs;
+      have/perm_eqs_normE eqs: denote_eqs1 f eqs'' by repeat
+        split;
+        lazymatch goal with
+          |- ?peq = _ => rewrite /peq -?cats1; reflexivity
         end
-    end
-  in
-  tag_rec unit.
-
-Ltac reify_eqs f E :=
-  let rec reify e :=
-    lazymatch e with
-      | f ?i => constr: (SeqAtom i)
-      | @nil _ => constr: (SeqNil)
-      | ?el ++ ?er =>
-        let el' := reify el in
-        let er' := reify er in
-        constr: (SeqCat el' er')
-      | rev ?e' => let e'' := reify e' in constr: (SeqRev e'')
-    end
-  in
-  let reify_eq e :=
-    lazymatch e with ?peq = perm_eq ?xs ?ys =>
-      let xs' := reify xs in
-      let ys' := reify ys in
-      constr: (peq = perm_eq (denote_Seq f xs') (denote_Seq f ys'))
-    end
-  in
-  lazymatch E with
-    | (?E' * ?e)%type =>
-      let E'' := reify_eqs f E' in
-      let e' := reify_eq e in
-      constr: ((E'' * e')%type)
-    | _ => reify_eq E
-  end.
+  end;
+  cbv [perm_eqs_norm map] in eqs;
+  repeat
+     (let pe := fresh "pe" in set pe := perm_elim _ _ _ in eqs;
+     native_compute in pe; subst pe);
+  cbv [denote_eqs2] in eqs.
 
 Ltac autoperm :=
+  let perm_eq' := fresh "perm_eq'" in pose perm_eq' := @perm_eq;
   let do_autoperm A :=
+    let f := fresh "f" in pose f := tt;
     let tag := fresh "tag" in pose tag := (fun x : seq A => x);
-    let f' := fresh "f" in pose f' := tt;
     let eqs := fresh "eqs" in tag_permeqs A tag eqs;
-    myquote f' eqs tag (@nil A);
-    unfold tag in eqs;
-    lazymatch goal with
-      | eqs := ?eqs' |- _ =>
-        let eqs'' := reify_eqs f' eqs' in
-        clear tag eqs;
-        have eqs: eqs'' by repeat
-          split;
-          lazymatch goal with
-            |- ?peq = _ => rewrite /peq -?cats1 ?catrevE; reflexivity
-          end
-    end;
-    rewrite !perm_eq_simpl in eqs;
-    repeat
-      (let pe := fresh "pe" in set pe := perm_elim _ _ _ in eqs;
-       native_compute in pe; subst pe);
-    cbv iota beta in eqs
+    perm_norm A f tag eqs;
+    cbv [flatten_map] in eqs;
+    rewrite ?cats0 /= {f} in eqs;
+    fold perm_eq' in eqs;
+    move: eqs;
+    repeat lazymatch goal with
+      | |- _ * _ -> _ => case
+      | |- ?peq = _ -> _ =>
+        let H := fresh "H" in
+        move: peq => peq H; subst peq
+    end
   in
-  lazymatch goal with
+  repeat lazymatch goal with
     | |- context [@perm_eq ?A ?xs ?ys] => do_autoperm A
     | H : context [@perm_eq ?A ?xs ?ys] |- _ => do_autoperm A
-  end.
+  end;
+  subst perm_eq';
+  try by [].
 
 Fixpoint enum_rindex (n : nat) :=
   if n is n'.+1
@@ -166,11 +107,8 @@ Example ex1 (A : eqType) (s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 s14 s15 
           (((((((((((s420 ++ s961) ++ s474) ++ s126) ++ (s532 ++ s4)) ++ (((s42 ++ s927) ++ s508) ++ (s634 ++ s968))) ++ (((((s219 ++ s941) ++ s320) ++ (s539 ++ s775)) ++ (((s506 ++ s346) ++ s313) ++ (s588 ++ s815))) ++ (((s273 ++ s203) ++ (s317 ++ s169)) ++ ((s633 ++ (s651 ++ s898)) ++ ((s513 ++ s1012) ++ s657))))) ++ ((((s733 ++ s55) ++ (((s233 ++ s181) ++ s806) ++ (s580 ++ s284))) ++ (((s841 ++ s949) ++ (s921 ++ s698)) ++ (s266 ++ (s468 ++ s497)))) ++ ((s154 ++ ((s296 ++ s406) ++ (s548 ++ s595))) ++ ((((s550 ++ s183) ++ s568) ++ (s189 ++ (s797 ++ s437))) ++ ((s965 ++ s191) ++ ((s327 ++ s948) ++ s251)))))) ++ (((((s82 ++ (s172 ++ ((s788 ++ s435) ++ s645))) ++ ((s957 ++ s509) ++ ((s913 ++ s853) ++ s638))) ++ (((s200 ++ s616) ++ (s678 ++ s753)) ++ (s78 ++ s687))) ++ ((((s635 ++ s433) ++ (s92 ++ s848)) ++ (((s263 ++ s161) ++ s664) ++ s107)) ++ (((s65 ++ s660) ++ (s410 ++ s831)) ++ ((s785 ++ s422) ++ (s288 ++ s485))))) ++ (((((s135 ++ (s193 ++ s856)) ++ (s650 ++ s381)) ++ (((s947 ++ s338) ++ s934) ++ s194)) ++ (((s939 ++ s796) ++ (s385 ++ s597)) ++ ((s44 ++ s1003) ++ (s103 ++ s89)))) ++ ((((s321 ++ s452) ++ (s117 ++ s464)) ++ ((s129 ++ s484) ++ (s558 ++ s106))) ++ (((s728 ++ s504) ++ s729) ++ ((s389 ++ s35) ++ s184)))))) ++ ((((((s412 ++ (s813 ++ s793)) ++ ((s861 ++ s100) ++ s755)) ++ (((s686 ++ s769) ++ s540) ++ ((s970 ++ s14) ++ s353))) ++ ((((s579 ++ s706) ++ (s722 ++ s294)) ++ ((s582 ++ s33) ++ s598)) ++ (((s190 ++ (s396 ++ s846)) ++ (s798 ++ s344)) ++ ((s887 ++ s155) ++ (s211 ++ (s997 ++ s382)))))) ++ (((((s0 ++ s673) ++ s398) ++ (s747 ++ s754)) ++ (s23 ++ ((s408 ++ s356) ++ (s779 ++ s442)))) ++ (((s15 ++ (s599 ++ s375)) ++ (s518 ++ s688)) ++ ((((s471 ++ s589) ++ s108) ++ s64) ++ ((s39 ++ s188) ++ (s931 ++ s744)))))) ++ (((((((s293 ++ s818) ++ s228) ++ (s114 ++ s928)) ++ ((s76 ++ s869) ++ s450)) ++ ((((s262 ++ s467) ++ s726) ++ (s366 ++ (s529 ++ s523))) ++ ((s178 ++ s446) ++ s871))) ++ ((((s976 ++ s891) ++ (s640 ++ s36)) ++ (s150 ++ (s915 ++ s694))) ++ (((s208 ++ (s977 ++ s281)) ++ (s910 ++ s482)) ++ ((s473 ++ s101) ++ s674)))) ++ ((((s63 ++ (s985 ++ s67)) ++ ((s416 ++ s345) ++ (s936 ++ s441))) ++ ((s358 ++ (s563 ++ (s642 ++ s720))) ++ ((s57 ++ s1007) ++ s110))) ++ ((((s160 ++ (s875 ++ s312)) ++ (s507 ++ s974)) ++ (s165 ++ ((s311 ++ s989) ++ ((s919 ++ s457) ++ (s380 ++ s603))))) ++ (((s771 ++ s116) ++ s662) ++ (s644 ++ s122))))))) ++ ((((((((s917 ++ s614) ++ (s671 ++ s992)) ++ (s18 ++ (s610 ++ s372))) ++ ((((s96 ++ s637) ++ s249) ++ (s217 ++ s60)) ++ (((s980 ++ s763) ++ s309) ++ (s746 ++ s205)))) ++ (((((s307 ++ s88) ++ s415) ++ (s718 ++ s560)) ++ ((s918 ++ s243) ++ (s176 ++ s287))) ++ (((s397 ++ s751) ++ ((s899 ++ s950) ++ s547)) ++ (((s572 ++ s925) ++ s405) ++ s198)))) ++ (((((s162 ++ s41) ++ s756) ++ (((s979 ++ s427) ++ s944) ++ (s860 ++ s703))) ++ (((s302 ++ s701) ++ (s562 ++ (s607 ++ s648))) ++ ((s466 ++ (s766 ++ s823)) ++ (s877 ++ s912)))) ++ (((((s552 ++ s692) ++ (s578 ++ s774)) ++ (s731 ++ s222)) ++ (((s847 ++ s812) ++ (s611 ++ s681)) ++ (s283 ++ s870))) ++ ((s109 ++ (s210 ++ s354)) ++ (s388 ++ (((s712 ++ s778) ++ s683) ++ s653)))))) ++ ((((((s196 ++ s53) ++ ((s896 ++ s315) ++ (s152 ++ s636))) ++ (((s225 ++ s143) ++ (s555 ++ s286)) ++ (((s503 ++ s780) ++ s803) ++ (s1021 ++ s449)))) ++ (((s1022 ++ s40) ++ (s456 ++ s952)) ++ ((s331 ++ s517) ++ (s839 ++ s978)))) ++ ((((s719 ++ s904) ++ s12) ++ (((s624 ++ (s814 ++ s897)) ++ s37) ++ ((s922 ++ s604) ++ s434))) ++ ((((s773 ++ s859) ++ (s179 ++ s716)) ++ ((s566 ++ s986) ++ s332)) ++ ((s285 ++ (s594 ++ s443)) ++ s132)))) ++ (((((s439 ++ s360) ++ (s27 ++ s430)) ++ ((s791 ++ s577) ++ (s411 ++ s119))) ++ ((s514 ++ s146) ++ (((s647 ++ s690) ++ s677) ++ (s199 ++ s476)))) ++ (((s402 ++ (s551 ++ s488)) ++ s278) ++ ((s760 ++ s274) ++ s7))))) ++ (((((((s696 ++ s713) ++ s99) ++ (s216 ++ ((s576 ++ s373) ++ s886))) ++ ((s3 ++ s889) ++ (s630 ++ (s1005 ++ s857)))) ++ ((((s623 ++ s907) ++ (s335 ++ s586)) ++ ((s724 ++ s654) ++ (s994 ++ s502))) ++ (((s538 ++ s156) ++ (s463 ++ s440)) ++ (s242 ++ ((s401 ++ s261) ++ s709))))) ++ ((((((s51 ++ s1023) ++ s246) ++ (s448 ++ s587)) ++ ((s186 ++ s959) ++ (s901 ++ s784))) ++ (((s280 ++ s868) ++ ((s956 ++ s700) ++ (s362 ++ s413))) ++ (s248 ++ (s417 ++ s838)))) ++ ((((s275 ++ s903) ++ ((s909 ++ s807) ++ s431)) ++ ((s556 ++ s655) ++ (s384 ++ s554))) ++ (((s659 ++ (s876 ++ s1010)) ++ s480) ++ ((s865 ++ s105) ++ (s22 ++ s247)))))) ++ (((((s83 ++ ((s339 ++ s215) ++ s125)) ++ ((s334 ++ s593) ++ (s131 ++ s472))) ++ (((s710 ++ s799) ++ (s386 ++ s1016)) ++ ((s58 ++ s276) ++ s21))) ++ ((((s220 ++ (s426 ++ s357)) ++ (s46 ++ (s819 ++ s378))) ++ (((s776 ++ s232) ++ s827) ++ ((s717 ++ s782) ++ s204))) ++ ((s25 ++ s145) ++ (s975 ++ s805)))) ++ (((((s890 ++ s374) ++ s98) ++ (s2 ++ s591)) ++ (((s245 ++ s833) ++ s104) ++ ((s528 ++ s158) ++ s213))) ++ (((((s601 ++ s649) ++ (s606 ++ (s743 ++ s929))) ++ s201) ++ ((s752 ++ s91) ++ (s151 ++ s855))) ++ (((s893 ++ s708) ++ s612) ++ (s602 ++ s26)))))))) ++ (((((((((s432 ++ s629) ++ (s314 ++ s174)) ++ ((s324 ++ s492) ++ (s19 ++ s553))) ++ ((s923 ++ s8) ++ ((s988 ++ s234) ++ (s90 ++ s844)))) ++ ((((s438 ++ (s866 ++ s900)) ++ (s69 ++ (s737 ++ s993))) ++ ((s140 ++ ((s981 ++ s626) ++ s370)) ++ ((s342 ++ s511) ++ s821))) ++ (((s680 ++ s61) ++ s429) ++ (s403 ++ s926)))) ++ (((((s229 ++ s516) ++ (s967 ++ s157)) ++ (s962 ++ s16)) ++ ((((s460 ++ s735) ++ ((s895 ++ s998) ++ s835)) ++ s304) ++ ((s318 ++ s68) ++ (s369 ++ s881)))) ++ ((((s498 ++ s702) ++ s48) ++ (s45 ++ s149)) ++ (((s808 ++ s120) ++ ((s355 ++ s223) ++ s171)) ++ (s71 ++ ((s914 ++ s84) ++ (s1002 ++ s679))))))) ++ ((((((s1008 ++ s491) ++ (s525 ++ s277)) ++ (((s826 ++ s882) ++ s490) ++ s218)) ++ ((s138 ++ ((s790 ++ s964) ++ s867)) ++ (s32 ++ (s139 ++ s164)))) ++ (((((s465 ++ (s544 ++ s828)) ++ s268) ++ (s500 ++ (s557 ++ s971))) ++ (((s244 ++ s505) ++ s732) ++ s185)) ++ (((s999 ++ s854) ++ (s253 ++ s730)) ++ ((s95 ++ s723) ++ s1004)))) ++ ((((((s252 ++ s765) ++ (s235 ++ s884)) ++ (s524 ++ ((s745 ++ s938) ++ s851))) ++ (((s336 ++ s510) ++ (s86 ++ s741)) ++ s70)) ++ (((s584 ++ s494) ++ s1018) ++ (s38 ++ s451))) ++ ((((s209 ++ s711) ++ ((s816 ++ s995) ++ s837)) ++ ((s804 ++ s996) ++ (s299 ++ s224))) ++ ((s47 ++ ((s534 ++ s475) ++ (s960 ++ s772))) ++ ((s197 ++ s954) ++ (s177 ++ s682))))))) ++ (((((((s571 ++ s758) ++ s31) ++ ((s173 ++ s348) ++ (s834 ++ s748))) ++ (((s134 ++ s414) ++ s9) ++ (s395 ++ s684))) ++ (((((s419 ++ s136) ++ s237) ++ (s787 ++ s991)) ++ ((s757 ++ s352) ++ (s770 ++ s843))) ++ ((((s665 ++ s489) ++ (s461 ++ s933)) ++ (s236 ++ ((s596 ++ s477) ++ s672))) ++ ((s192 ++ s231) ++ (s663 ++ s537))))) ++ ((((((s361 ++ s801) ++ s946) ++ ((s794 ++ s453) ++ (s387 ++ s695))) ++ (s349 ++ s206)) ++ (((s303 ++ s282) ++ (s272 ++ s840)) ++ ((s496 ++ s479) ++ (s740 ++ s715)))) ++ (((((s704 ++ s526) ++ s697) ++ (s469 ++ s535)) ++ ((s685 ++ (s911 ++ s1000)) ++ (s455 ++ s316))) ++ ((s52 ++ (s617 ++ s824)) ++ (s265 ++ (s493 ++ s920)))))) ++ ((((((s820 ++ s574) ++ s542) ++ (s367 ++ s11)) ++ (((s227 ++ s1014) ++ (s825 ++ s883)) ++ (((s383 ++ s990) ++ s271) ++ s255))) ++ (((((s487 ++ s501) ++ s984) ++ (s376 ++ s583)) ++ ((s13 ++ s371) ++ s858)) ++ (((s862 ++ s141) ++ (s894 ++ s238)) ++ ((s619 ++ s330) ++ (s689 ++ s121))))) ++ (((((s759 ++ s93) ++ (s940 ++ s207)) ++ ((s916 ++ s102) ++ (s343 ++ s615))) ++ (((s656 ++ s436) ++ (s777 ++ s625)) ++ ((s111 ++ s20) ++ s166))) ++ (((((s830 ++ s167) ++ s1006) ++ (s885 ++ s404)) ++ ((s241 ++ (s575 ++ s705)) ++ (s291 ++ s393))) ++ ((((s254 ++ s942) ++ ((s478 ++ s905) ++ s341)) ++ ((s180 ++ s269) ++ s725)) ++ ((((s800 ++ s792) ++ s738) ++ (s714 ++ s836)) ++ (s658 ++ s364)))))))) ++ (((((((s319 ++ s240) ++ ((s590 ++ (s864 ++ s639)) ++ ((s930 ++ s670) ++ s641))) ++ ((s392 ++ s6) ++ ((s567 ++ s668) ++ (s499 ++ s739)))) ++ ((((s533 ++ (s983 ++ s811)) ++ (s570 ++ s147)) ++ (s43 ++ (s347 ++ s340))) ++ ((((s879 ++ s77) ++ s239) ++ (s118 ++ ((s963 ++ s693) ++ s955))) ++ (((s727 ++ s305) ++ s872) ++ (s849 ++ s75))))) ++ (((((s459 ++ s423) ++ s462) ++ ((s34 ++ s87) ++ s937)) ++ ((s628 ++ s10) ++ (s301 ++ (s425 ++ s810)))) ++ ((((s608 ++ s72) ++ ((s481 ++ s407) ++ (s226 ++ s973))) ++ (((s620 ++ s850) ++ s159) ++ ((s969 ++ s153) ++ s559))) ++ (((s1017 ++ s953) ++ (s148 ++ s28)) ++ (((s56 ++ s786) ++ s30) ++ ((s79 ++ s536) ++ (s418 ++ s124))))))) ++ ((((((s258 ++ ((s310 ++ s789) ++ (s1009 ++ s935))) ++ (((s323 ++ s892) ++ s483) ++ s308)) ++ (s175 ++ (s295 ++ s573))) ++ (((((s531 ++ s377) ++ s987) ++ s368) ++ (s669 ++ s297)) ++ (((s592 ++ s300) ++ (s749 ++ s359)) ++ (s421 ++ s170)))) ++ ((((s520 ++ s130) ++ (s365 ++ s250)) ++ s74) ++ ((((s447 ++ s736) ++ s842) ++ s80) ++ (((s822 ++ s764) ++ s809) ++ (s622 ++ s561))))) ++ ((((((s515 ++ s646) ++ s852) ++ (s168 ++ (s257 ++ s972))) ++ (s123 ++ s350)) ++ (((s767 ++ s521) ++ (s66 ++ s49)) ++ ((s163 ++ s845) ++ (s527 ++ s966)))) ++ (((s363 ++ s29) ++ (s112 ++ s564)) ++ ((s259 ++ (s322 ++ ((s880 ++ s932) ++ s428))) ++ ((s512 ++ s290) ++ (s958 ++ s1011))))))) ++ (((((((s522 ++ s707) ++ (s873 ++ s982)) ++ ((s144 ++ s256) ++ s631)) ++ (((s495 ++ s545) ++ (s267 ++ s908)) ++ (s1 ++ s264))) ++ (((s691 ++ s85) ++ (s454 ++ s97)) ++ ((((s888 ++ s543) ++ s874) ++ ((s742 ++ s445) ++ s585)) ++ ((s817 ++ s289) ++ s458)))) ++ (((((s337 ++ s519) ++ s292) ++ ((s530 ++ s279) ++ s94)) ++ (((s829 ++ s863) ++ (s721 ++ s182)) ++ ((s951 ++ s133) ++ s652))) ++ ((((s127 ++ s230) ++ s329) ++ ((s128 ++ s618) ++ s1020)) ++ ((s541 ++ (s795 ++ s1015)) ++ ((s391 ++ s1019) ++ s569))))) ++ (((((((s328 ++ s221) ++ s59) ++ ((s195 ++ s781) ++ (s581 ++ s270))) ++ (((s351 ++ (s424 ++ s661)) ++ (s394 ++ s632)) ++ s214)) ++ ((((s333 ++ (s390 ++ s565)) ++ s62) ++ s50) ++ ((((s627 ++ s187) ++ s1013) ++ (s260 ++ s470)) ++ (s486 ++ s142)))) ++ ((((s399 ++ (s409 ++ s945)) ++ ((s643 ++ s326) ++ s761)) ++ (s924 ++ s212)) ++ ((((s306 ++ s675) ++ s902) ++ ((s613 ++ s115) ++ s113)) ++ (s379 ++ s24)))) ++ ((((((s549 ++ s600) ++ (s621 ++ s783)) ++ s298) ++ ((s699 ++ s54) ++ s943)) ++ ((s609 ++ (s1001 ++ s768)) ++ ((s325 ++ s444) ++ s5))) ++ (((((s400 ++ s906) ++ (s802 ++ s81)) ++ s73) ++ (((s878 ++ s832) ++ (s666 ++ s676)) ++ s137)) ++ (((s762 ++ s734) ++ (s750 ++ s667)) ++ ((s17 ++ s546) ++ (s202 ++ s605)))))))))).
 Proof.
 Time autoperm.
-(* Finished transaction in 134.417 secs (134.237u,0.06s) (successful) *)
-
-by rewrite !eqs.
-
+(* Finished transaction in 109.651 secs (109.349u,0.144s) (successful) *)
 Time Defined.
-(* Finished transaction in 2.13 secs (2.13u,0.s) (successful) *)
+(* Finished transaction in 1.964 secs (1.956u,0.008s) (successful) *)
 
 Print ex1.

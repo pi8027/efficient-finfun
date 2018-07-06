@@ -83,7 +83,8 @@ Proof. by elim: x y => [x IH | x IH |] []. Qed.
 Ltac myquote F X C NIL :=
   let C' := fresh "C" in set C' := C;
   let rec quote_fold n i :=
-    fold (F i) in X;
+    let fi := eval cbv delta [F] iota beta in (F i) in
+    change (C' fi) with (F i) in X;
     lazymatch n with
       | ?n'.+1 =>
         quote_fold n' (rindex_L i);
