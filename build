@@ -11,7 +11,7 @@ envset(){
   theories/after) COQVER=mod; vfiles=(presburger.v extraction.v) ;;
   theories/misc)
     COQVER=mod
-    vfiles=(extraction_ocaml.v reflection_base.v mergesort.v)
+    vfiles=(extraction_ocaml.v reflection_base.v mergesort.v fast_autoperm.v)
   ;;
   theories/marray)
     COQVER=mod

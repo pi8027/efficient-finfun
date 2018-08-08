@@ -89,53 +89,58 @@ Lemma perm_flatten_map (A B : eqType) (f : A -> seq B) (xs ys : seq A) :
 Proof. by rewrite !flatten_mapE => H; apply/perm_flatten/perm_map. Qed.
 
 Inductive Seq : Type :=
-  | SeqAtom   of rindex
+  | SeqAtom   of Quote.index
   | SeqNil
   | SeqCat    of Seq & Seq
   | SeqCatrev of Seq & Seq
   | SeqRev    of Seq.
 
-Fixpoint denote_Seq (A : Type) (f : rindex -> seq A) (xs : Seq) : seq A :=
+Fixpoint denote_Seq (A : Type) (m : Quote.varmap (seq A)) (xs : Seq) : seq A :=
   match xs with
-    | SeqAtom xs => f xs
+    | SeqAtom xs => Quote.varmap_find [::] xs m
     | SeqNil => [::]
-    | SeqCat xs ys => denote_Seq f xs ++ denote_Seq f ys
-    | SeqCatrev xs ys => catrev (denote_Seq f xs) (denote_Seq f ys)
-    | SeqRev xs => rev (denote_Seq f xs)
+    | SeqCat xs ys => denote_Seq m xs ++ denote_Seq m ys
+    | SeqCatrev xs ys => catrev (denote_Seq m xs) (denote_Seq m ys)
+    | SeqRev xs => rev (denote_Seq m xs)
   end.
 
-Fixpoint denote_eqs1 (A : eqType) (f : rindex -> seq A)
+Fixpoint denote_eqs1 (A : eqType) (m : Quote.varmap (seq A))
                      (xs : seq (bool * Seq * Seq)) : Type :=
   match xs with
     | [::] => unit
     | (peq, ys, zs) :: xs' =>
-      denote_eqs1 f xs' * (peq = perm_eq (denote_Seq f ys) (denote_Seq f zs))
+      denote_eqs1 m xs' * (peq = perm_eq (denote_Seq m ys) (denote_Seq m zs))
   end.
 
-Fixpoint denote_eqs2 (A : eqType) (f : rindex -> seq A)
-                     (xs : seq (bool * seq rindex * seq rindex)) : Type :=
+Fixpoint denote_eqs2 (A : eqType) (m : Quote.varmap (seq A))
+         (xs : seq (bool * seq Quote.index * seq Quote.index)) : Type :=
   match xs with
     | [::] => unit
-    | [:: (peq, ys, zs)] => peq = perm_eq (flatten_map f ys) (flatten_map f zs)
+    | [:: (peq, ys, zs)] =>
+      peq = perm_eq (flatten_map (Quote.varmap_find [::] ^~ m) ys)
+                    (flatten_map (Quote.varmap_find [::] ^~ m) zs)
     | (peq, ys, zs) :: xs' =>
-      denote_eqs2 f xs' * (peq = perm_eq (flatten_map f ys) (flatten_map f zs))
+      denote_eqs2 m xs' *
+      (peq = perm_eq (flatten_map (Quote.varmap_find [::] ^~ m) ys)
+                     (flatten_map (Quote.varmap_find [::] ^~ m) zs))
   end.
 
-Fixpoint sort_Seq_rec (xs : Seq) (xss : seq (seq rindex)) : seq (seq rindex) :=
+Fixpoint sort_Seq_rec (xs : Seq) (xss : seq (seq Quote.index)) :
+  seq (seq Quote.index) :=
   match xs with
-    | SeqAtom i => merge_sort_push leq_rindex [:: i] xss
+    | SeqAtom i => merge_sort_push geq_index [:: i] xss
     | SeqNil => xss
     | SeqCat xs ys | SeqCatrev xs ys => sort_Seq_rec ys (sort_Seq_rec xs xss)
     | SeqRev xs => sort_Seq_rec xs xss
   end.
 
-Definition sort_Seq (xs : Seq) : seq rindex :=
-  merge_sort_pop leq_rindex [::] (sort_Seq_rec xs [::]).
+Definition sort_Seq (xs : Seq) : seq Quote.index :=
+  merge_sort_pop geq_index [::] (sort_Seq_rec xs [::]).
 
 Definition perm_eqs_norm :
-  seq (bool * Seq * Seq) -> seq (bool * seq rindex * seq rindex) :=
+  seq (bool * Seq * Seq) -> seq (bool * seq Quote.index * seq Quote.index) :=
   map (fun '(peq, xs, ys) =>
-         let (xs', ys') := perm_elim leq_rindex (sort_Seq xs) (sort_Seq ys) in
+         let (xs', ys') := perm_elim geq_index (sort_Seq xs) (sort_Seq ys) in
          (peq, xs', ys')).
 
 Section Sort_ext.
@@ -158,16 +163,19 @@ Qed.
 
 End Sort_ext.
 
-Lemma sort_Seq_perm (A : eqType) (f : rindex -> seq A) (xs : Seq) :
-  perm_eq (flatten_map f (sort_Seq xs)) (denote_Seq f xs).
+Lemma sort_Seq_perm (A : eqType) (m : Quote.varmap (seq A)) (xs : Seq) :
+  perm_eq (flatten_map (Quote.varmap_find [::] ^~ m) (sort_Seq xs))
+          (denote_Seq m xs).
 Proof.
-move: (merge_sort_pop_perm leq_rindex [::] (sort_Seq_rec xs [::])).
-rewrite /sort_Seq => /= /(perm_flatten_map f) /perm_eqlP ->.
-rewrite -[denote_Seq _ _]cats0 -[X in _ ++ X]/(flatten_map f (flatten [::])).
-elim: xs [::] => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
+move: (merge_sort_pop_perm geq_index [::] (sort_Seq_rec xs [::])).
+rewrite /sort_Seq => /= /perm_flatten_map /perm_eqlP ->.
+rewrite -[denote_Seq _ _]cats0
+        -[X in _ ++ X]/(flatten_map (Quote.varmap_find [::] ^~ m)
+                                    (flatten [::])).
+elim: xs (Nil (seq _)) => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
   try rewrite -?(perm_eqrP (IHy _)).
-- by move: (merge_sort_push_perm leq_rindex [:: i] xss)
-    => /= /(perm_flatten_map f) /perm_eqlP ->.
+- by move: (merge_sort_push_perm geq_index [:: i] xss)
+    => /= /perm_flatten_map /perm_eqlP ->.
 - by rewrite (perm_eqlP (IHy _)) perm_eq_sym -catA perm_catCA perm_cat2l
              perm_eq_sym IHx.
 - by rewrite (perm_eqlP (IHy _)) perm_eq_sym catrevE -catA perm_catCA perm_cat2l
@@ -176,33 +184,33 @@ elim: xs [::] => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
 Qed.
 
 Lemma perm_eqs_normE
-      (A : eqType) (f : rindex -> seq A) (xs : seq (bool * Seq * Seq)) :
-  denote_eqs1 f xs -> denote_eqs2 f (perm_eqs_norm xs).
+      (A : eqType) (m : Quote.varmap (seq A)) (xs : seq (bool * Seq * Seq)) :
+  denote_eqs1 m xs -> denote_eqs2 m (perm_eqs_norm xs).
 Proof.
 by elim: xs => [| [[b ys] zs] [| x xs] IH] //=;
-  case: (perm_elim _ _ _) (perm_elim_perm leq_rindex (sort_Seq ys) (sort_Seq zs))
+  case: (perm_elim _ _ _) (perm_elim_perm geq_index (sort_Seq ys) (sort_Seq zs))
     => /= ys' zs' [];
   rewrite -(perm_eqlP (sort_Seq_perm _ _)) -(perm_eqrP (sort_Seq_perm _ _)) =>
-    /(perm_flatten_map f) /perm_eqlP -> /(perm_flatten_map f) /perm_eqrP ->;
+    /perm_flatten_map /perm_eqlP -> /perm_flatten_map /perm_eqrP ->;
   rewrite !flatten_mapE !map_cat !flatten_cat perm_cat2l;
   case => // Hl Hr; split => //; apply IH.
 Qed.
 
 Ltac tag_seq tag xs :=
   lazymatch xs with
-    | @nil ?A => constr:(xs)
-    | ?x :: ?xs => let xs' := tag_seq tag xs in constr:(tag [:: x] ++ xs')
-    | rcons ?xs ?x => let xs' := tag_seq tag xs in constr:(xs' ++ tag [:: x])
-    | ?xs ++ ?ys =>
-      let xs' := tag_seq tag xs in
-      let ys' := tag_seq tag ys in
-      constr:(xs' ++ ys')
-    | catrev ?xs ?ys =>
-      let xs' := tag_seq tag xs in
-      let ys' := tag_seq tag ys in
-      constr:(catrev xs' ys')
-    | rev ?xs => let xs' := tag_seq tag xs in constr:(rev xs')
-    | _ => constr:(tag xs)
+  | @nil ?A => constr:(xs)
+  | ?x :: ?xs => let xs' := tag_seq tag xs in constr:(tag [:: x] ++ xs')
+  | rcons ?xs ?x => let xs' := tag_seq tag xs in constr:(xs' ++ tag [:: x])
+  | ?xs ++ ?ys =>
+    let xs' := tag_seq tag xs in
+    let ys' := tag_seq tag ys in
+    constr:(xs' ++ ys')
+  | catrev ?xs ?ys =>
+    let xs' := tag_seq tag xs in
+    let ys' := tag_seq tag ys in
+    constr:(catrev xs' ys')
+  | rev ?xs => let xs' := tag_seq tag xs in constr:(rev xs')
+  | _ => constr:(tag xs)
   end.
 
 Ltac tag_permeqs A tag eqs :=
@@ -213,14 +221,14 @@ Ltac tag_permeqs A tag eqs :=
   let rec tag_rec eqs' :=
     let peq := fresh "peq" in
     lazymatch goal with
-      | |- context [@perm_eq A ?xs ?ys] =>
-        let peq' := tag_permeq xs ys in
-        set peq := (perm_eq _ _); tag_rec (eqs' * (peq = peq'))%type
-      | H : context [@perm_eq A ?xs ?ys] |- _ =>
-        let peq' := tag_permeq xs ys in
-        set peq := (perm_eq _ _) in H; tag_rec (eqs' * (peq = peq'))%type
-      | _ =>
-        set eqs := eqs'
+    | |- context [@perm_eq A ?xs ?ys] =>
+      let peq' := tag_permeq xs ys in
+      set peq := (perm_eq _ _); tag_rec (eqs' * (peq = peq'))%type
+    | H : context [@perm_eq A ?xs ?ys] |- _ =>
+      let peq' := tag_permeq xs ys in
+      set peq := (perm_eq _ _) in H; tag_rec (eqs' * (peq = peq'))%type
+    | _ =>
+      set eqs := eqs'
     end
   in
   tag_rec unit.
@@ -228,41 +236,46 @@ Ltac tag_permeqs A tag eqs :=
 Ltac reify_eqs f E :=
   let rec reify e :=
     lazymatch e with
-      | f ?i => constr: (SeqAtom i)
-      | @nil _ => constr: (SeqNil)
-      | ?el ++ ?er =>
-        let el' := reify el in
-        let er' := reify er in
-        constr: (SeqCat el' er')
-      | catrev ?el ?er =>
-        let el' := reify el in
-        let er' := reify er in
-        constr: (SeqCatrev el' er')
-      | rev ?e' => let e'' := reify e' in constr: (SeqRev e'')
+    | f ?i => constr: (SeqAtom i)
+    | @nil _ => constr: (SeqNil)
+    | ?el ++ ?er =>
+      let el' := reify el in
+      let er' := reify er in
+      constr: (SeqCat el' er')
+    | catrev ?el ?er =>
+      let el' := reify el in
+      let er' := reify er in
+      constr: (SeqCatrev el' er')
+    | rev ?e' => let e'' := reify e' in constr: (SeqRev e'')
     end
   in
   lazymatch E with
-    | (?E' * (?peq = perm_eq ?xs ?ys))%type =>
-      let E'' := reify_eqs f E' in
-      let xs' := reify xs in
-      let ys' := reify ys in
-      constr: ((peq, xs', ys') :: E'')
-    | unit =>
-      constr: (@nil (bool * Seq * Seq))
+  | (?E' * (?peq = perm_eq ?xs ?ys))%type =>
+    let E'' := reify_eqs f E' in
+    let xs' := reify xs in
+    let ys' := reify ys in
+    constr: ((peq, xs', ys') :: E'')
+  | unit =>
+    constr: (@nil (bool * Seq * Seq))
   end.
 
-Ltac perm_norm A f tag eqs :=
-  myquote f eqs tag (@nil A);
-  unfold tag in eqs;
+Ltac perm_norm A tag vmap eqs :=
   lazymatch goal with
-    | eqs := ?eqs' |- _ =>
-      let eqs'' := reify_eqs f eqs' in
-      clear tag eqs;
-      have/perm_eqs_normE eqs: denote_eqs1 f eqs'' by repeat
-        split;
-        lazymatch goal with
-          |- ?peq = _ => rewrite /peq -?cats1; reflexivity
-        end
+  | eqs := ?eqs' |- _ =>
+    match myquote eqs' tag (@nil A) with
+    | let f := varmap_find' ?default ?vmap' in @?F f =>
+      let f := fresh "f" in
+      set f := (fun (_ : Quote.index) => default);
+      set vmap := vmap';
+      let eqs'' := eval cbv beta in (F f) in
+      let eqs''' := reify_eqs f eqs'' in
+      clear f tag eqs;
+      have/perm_eqs_normE eqs: (denote_eqs1 vmap eqs''')
+        by repeat split;
+                  lazymatch goal with
+                  | |- ?peq = _ => rewrite /peq -?cats1; reflexivity
+                  end
+    end
   end;
   cbv [perm_eqs_norm map] in eqs;
   repeat
@@ -273,24 +286,23 @@ Ltac perm_norm A f tag eqs :=
 Ltac autoperm :=
   let perm_eq' := fresh "perm_eq'" in pose perm_eq' := @perm_eq;
   let do_autoperm A :=
-    let f := fresh "f" in pose f := tt;
     let tag := fresh "tag" in pose tag := (fun x : seq A => x);
     let eqs := fresh "eqs" in tag_permeqs A tag eqs;
-    perm_norm A f tag eqs;
+    let vmap := fresh "vmap" in perm_norm A tag vmap eqs;
     cbv [flatten_map] in eqs;
-    rewrite ?cats0 /= {f} in eqs;
+    rewrite ?cats0 /= {vmap} in eqs;
     fold perm_eq' in eqs;
     move: eqs;
     repeat lazymatch goal with
-      | |- _ * _ -> _ => case
-      | |- ?peq = _ -> _ =>
-        let H := fresh "H" in
-        move: peq => peq H; subst peq
+    | |- _ * _ -> _ => case
+    | |- ?peq = _ -> _ =>
+      let H := fresh "H" in
+      move: peq => peq H; subst peq
     end
   in
   repeat lazymatch goal with
-    | |- context [@perm_eq ?A ?xs ?ys] => do_autoperm A
-    | H : context [@perm_eq ?A ?xs ?ys] |- _ => do_autoperm A
+  | |- context [@perm_eq ?A ?xs ?ys] => do_autoperm A
+  | H : context [@perm_eq ?A ?xs ?ys] |- _ => do_autoperm A
   end;
   subst perm_eq';
   try by [].
