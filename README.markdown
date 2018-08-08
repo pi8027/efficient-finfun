@@ -13,7 +13,7 @@ arrays. Our method consists of the following three parts:
 
 ## Requirements
 
-* OPAM, OCaml 4.06.0+flambda, Camlp5, Ocamlbuild and ocamlfind
+* OPAM, OCaml 4.07.0+flambda, Camlp5, Ocamlbuild and ocamlfind
 * tmux and zsh (for benchmark tools and build scripts)
 
 Following materials are also required, but included as submodules or

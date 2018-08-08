@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-eval `opam config env --switch=4.06.0+flambda`
+eval `opam config env --switch=4.07.0+flambda`
 
 cd `dirname $0`
 BASEDIR=`pwd`
