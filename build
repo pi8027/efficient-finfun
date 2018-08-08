@@ -29,7 +29,7 @@ envset(){
   REGULAR=$BASEDIR/regular-$COQVER
   COQPREFIX=$BASEDIR/coq-$COQVER
   COQBIN=$COQPREFIX/bin
-  COQLIB="-I $MATHCOMP -R $MATHCOMP mathcomp -R $REGULAR regular"
+  COQLIB="-R $MATHCOMP mathcomp -R $REGULAR regular"
 }
 
 export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
@@ -56,7 +56,11 @@ pushd $dir
 
   [[ -n $error ]] && exit 1
 
-  (echo $COQLIB; echo $vfiles) > _CoqProject
+  (echo "-R $MATHCOMP mathcomp";
+   echo "-R $REGULAR regular";
+   echo "$vfiles") > _CoqProject
+
+  echo "((coq-mode . ((coq-prog-name . \"$COQBIN/coqtop\"))))" > .dir-locals.el
 
   make -j ${JOBS:-8} VFILES="$vfiles" PATH="$COQBIN:$PATH" \
        COQLIBS="$COQLIB" COQFLAGS="-debug -native-compiler"
@@ -70,7 +74,7 @@ pushd ocaml
 
   for f in before after; do
     echo "module Presburger = Presburger_$f;;" > def.ml
-	ocamlbuild -build-dir _presburger_$f -no-hygiene -just-plugin
+    ocamlbuild -build-dir _presburger_$f -no-hygiene -just-plugin
     ocamlbuild -build-dir _presburger_$f -no-hygiene -package unix \
       -tag debug presburger_main.byte
     ocamlbuild -build-dir _presburger_$f -no-hygiene -package unix \
@@ -82,7 +86,7 @@ pushd ocaml
   done
 
   for f in matrix wuf quicksort floyd_warshall; do
-	ocamlbuild -build-dir _$f -no-hygiene -just-plugin
+    ocamlbuild -build-dir _$f -no-hygiene -just-plugin
     ocamlbuild -build-dir _$f -no-hygiene -package unix \
       -tag debug ${f}_main.byte
     ocamlbuild -build-dir _$f -no-hygiene -package unix \
@@ -92,7 +96,7 @@ pushd ocaml
       -tag 'remove_unused_arguments' \
       -tag 'unbox_closures' \
       -tag 'inlining_report' \
-	  #-tag 'dflambda-verbose'
+      #-tag 'dflambda-verbose'
   done
 
 popd # ocaml

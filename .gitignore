@@ -3,6 +3,7 @@
 *.aux
 .coq-native/
 theories/*/_CoqProject
+theories/*/.dir-locals.el
 .deps
 .lia.cache
 ocaml/*.ml
