@@ -53,7 +53,7 @@ Qed.
 Ltac perm_norm A tag vmap eqs :=
   lazymatch goal with
   | eqs := ?eqs' |- _ =>
-    match myquote eqs' tag (@nil A) with
+    lazymatch myquote eqs' tag (@nil A) with
     | let f := varmap_find' ?default ?vmap' in @?F f =>
       let f := fresh "f" in
       set f := (fun (_ : Quote.index) => default);
