@@ -66,25 +66,23 @@ let uftest1
 
 let uftest2 (a : ufarray) elems n m =
   let pick () = Obj.magic (Random.int elems) in
-  let a' = Obj.magic ((), a) in
   for i = 1 to n do
     let x = pick () in let y = pick () in
-    let _ = Wuf.WUF.munion n x y a' in ()
+    let _ = Wuf.WUF.munion n x y (Obj.magic a) in ()
   done;
   for j = 1 to m do
-    let x = pick () in let _ = Wuf.WUF.mfind n x a' in ()
+    let x = pick () in let _ = Wuf.WUF.mfind n x (Obj.magic a) in ()
   done
 ;;
 
 let uftest3 (a : ufarray) elems n m =
   let pick () = Obj.magic (Random.int elems) in
-  let a' = Obj.magic ((), a) in
   for i = 1 to n do
     let x = pick () in let y = pick () in
-    let _ = Wuf_o0.WUF.munion n x y a' in ()
+    let _ = Wuf_o0.WUF.munion n x y (Obj.magic a) in ()
   done;
   for j = 1 to m do
-    let x = pick () in let _ = Wuf_o0.WUF.mfind n x a' in ()
+    let x = pick () in let _ = Wuf_o0.WUF.mfind n x (Obj.magic a) in ()
   done
 ;;
 

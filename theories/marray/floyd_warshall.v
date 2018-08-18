@@ -133,14 +133,14 @@ Definition floyd_warshall_succ (g : G) (y : T) : G :=
    let xyz := add_distance (g (x, y)) (g (y, z)) in
    if lt_distance xyz (g (x, z)) then xyz else g (x, z)].
 
-Definition m_floyd_warshall :
-  AState [:: ([finType of T * T], option nat : Type)] unit :=
-  miterate_revfin (fun i _ => astate_set (i, i) (Some 0)) tt;;
-  miterate_revfin (fun i _ =>
-    miterate_revfin (fun j _ =>
+Definition m_floyd_warshall : AState {ffun T * T -> option nat} unit :=
+  let iterate := @miterate_revfin T unit _ in
+  iterate (fun i _ => astate_set (i, i) (Some 0)) tt;;
+  iterate (fun i _ =>
+    iterate (fun j _ =>
       d_ji <- astate_get (j, i);
       if d_ji isn't Some dji then astate_ret tt else
-      miterate_revfin (fun k _ =>
+      iterate (fun k _ =>
         d_ik <- astate_get (i, k);
         if d_ik isn't Some dik then astate_ret tt else
         d_jk <- astate_get (j, k);
@@ -164,9 +164,7 @@ Definition floyd_warshall
 Definition floyd_warshall_fast
            (n : nat) (g : {ffun 'I_n * 'I_n -> option nat}) :
   {ffun 'I_n * 'I_n -> option nat} :=
-  let: (_, g', _) :=
-    run_AState (m_floyd_warshall [finType of 'I_n]) (tt, g) in
-  g'.
+  snd (run_AState (m_floyd_warshall _) g).
 
 End Floyd_Warshall.
 
@@ -179,5 +177,4 @@ Extraction Inline
   Floyd_Warshall.floyd_warshall_zero Floyd_Warshall.floyd_warshall_succ
   Floyd_Warshall.m_floyd_warshall.
 
-Extraction "../../ocaml/floyd_warshall.ml"
-           Sign runt_AState runt_AState_ Floyd_Warshall.
+Extraction "../../ocaml/floyd_warshall.ml" Floyd_Warshall.

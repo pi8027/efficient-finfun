@@ -27,50 +27,50 @@ Extraction Inline
   Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
   prod_fin_encode prod_fin_decode finfun_fin_encode finfun_fin_decode.
 
+(* copyTypes *)
+
+Extraction Implicit ffun_copy [I].
+Extract Inlined Constant ffun_copy => "Array.copy".
+
+Extraction Inline
+  CopyableRaw.copy CopyableRaw.ffun_mixin CopyableRaw.prod_mixin
+  Copyable.class Copyable.pack Copyable.clone
+  copy finfun_copyType prod_copyType.
+
 (* array state monad *)
 
-Extraction Implicit astate_ret_ [sig].
-Extraction Implicit astate_bind_ [sig].
-Extraction Implicit astate_lift_ [I sig].
-Extraction Implicit astate_GET_ [I sig].
-Extraction Implicit astate_SET_ [I sig].
-Extraction Implicit astate_ret [sig].
-Extraction Implicit astate_bind [sig].
-Extraction Implicit astate_lift [I sig].
-Extraction Implicit astate_GET [I sig].
-Extraction Implicit astate_SET [I sig].
+Extraction Implicit astate_GET_ [I].
+Extraction Implicit astate_SET_ [I].
+Extraction Implicit astate_GET [I].
+Extraction Implicit astate_SET [I].
 
-Extract Inductive AState => "runt_AState_"
+Extract Inductive AState => "(->)"
   [(* return *) "(fun a s -> a)"
    (* bind *)   "(fun (f, g) s -> let r = f s in g r s)"
-   (* lift *)   "(fun f s -> let (ss, _) = Obj.magic s in f ss)"
-   (* get *)    "(fun i s -> let (_, s1) = Obj.magic s in s1.(i))"
-   (* set *)    "(fun (i, x) s -> let (_, s1) = Obj.magic s in s1.(i) <- x)"]
+   (* frameL *) "(fun f (sl, _) -> f sl)"
+   (* frameR *) "(fun f (_, sr) -> f sr)"
+   (* get *)    "(fun i s -> s.(i))"
+   (* set *)    "(fun (i, x) s -> s.(i) <- x)"]
   "(* It is not permitted to use AState_rect in extracted code. *)".
 Extract Type Arity AState 1.
 
-Extract Inlined Constant astate_ret => "(fun a s -> a)".
-Extract Inlined Constant astate_bind => "(fun f g s -> let r = f s in g r s)".
-Extract Inlined Constant astate_lift =>
-  "(fun f s -> let (ss, _) = Obj.magic s in f ss)".
+Extract Inlined Constant astate_ret =>
+  "(* return *) (fun a s -> a)".
+Extract Inlined Constant astate_bind =>
+  "(* bind *) (fun f g s -> let r = f s in g r s)".
+Extract Inlined Constant astate_frameL =>
+  "(* frameL *) (fun f (sl, _) -> f sl)".
+Extract Inlined Constant astate_frameR =>
+  "(* frameR *) (fun f (_, sr) -> f sr)".
 Extract Inlined Constant astate_GET =>
-  "(fun i s -> let (_, s1) = Obj.magic s in s1.(i))".
+  "(* GET *) (fun i s -> s.(i))".
 Extract Inlined Constant astate_SET =>
-  "(fun i x s -> let (_, s1) = Obj.magic s in s1.(i) <- x)".
-
-Extract Constant run_AState =>
-  "(fun sign f s ->
-    let rec copy sign s =
-      match sign with
-        | [] -> Obj.magic ()
-        | _ :: sign' -> let (s', a) = Obj.magic s in
-          Obj.magic (copy sign' s', Array.copy a) in
-    let s' = copy sign s in
-    let r = Obj.magic f s' in (s', r))".
+  "(* SET *) (fun i x s -> s.(i) <- x)".
+Extract Inlined Constant run_AState_raw =>
+  "(* run_AState_raw *) (fun a s -> (a s, s))".
 
 Extraction Inline
-  Monad.base Monad.runt Monad.run Monad.ret Monad.bind
-  Identity_monadType AState_monadType
+  run_AState
   SWAP swap
   iterate_revord iterate_fin iterate_revfin
   miterate_revord miterate_fin miterate_revfin.

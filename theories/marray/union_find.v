@@ -470,7 +470,7 @@ Section find.
 
 Variable (g : G) (Hg : acycle g).
 
-Fixpoint mfind_rec n x : AState [:: (T, T + R)%type] (T * R) :=
+Fixpoint mfind_rec n x : AState {ffun T -> T + R} (T * R) :=
   if n is n'.+1
   then x' <- astate_get x;
        match x' with
@@ -487,25 +487,24 @@ Definition mfind := mfind_rec $|T|.
 Lemma run_mfind_rec n x xs :
   let x' := last x xs in
   path g x xs -> size xs < n -> repr g x' ->
-  run_AState (mfind_rec n x) (tt, g) =
-  (tt, [ffun z => if (z \in x :: xs) && (z != x') then inl x' else g z],
-   (x', classval g x')).
+  run_AState (mfind_rec n x) g =
+  (x', classval g x',
+   [ffun z => if (z \in x :: xs) && (z != x') then inl x' else g z]).
 Proof.
 move => /= H /subnK <-; move: {n} (n - _) => n; rewrite addnC.
 elim/path_ind: x xs / H (path_uniq (Hg _) H) => [x /= _ H | x xs];
-  first by rewrite fin_encodeK (eqP H) /=; congr (_, _, _);
+  first by rewrite !(run_AStateE, eqP H); congr (_, _);
            apply/ffunP => z; rewrite ffunE inE andbN.
 rewrite reprE // /(succ g x); case_eq (g x) => x';
-  rewrite ?eqxx //= inE !fin_encodeK negb_or -andbA
+  rewrite ?eqxx //= inE !run_AStateE negb_or -andbA
     => H H0 H1 H2 /and4P [_ H3 H4 H5] H6.
-rewrite H /= !fin_encodeK {}H2 ?H4 //=;
-  congr (_, _, _); apply/ffunP => y; rewrite !ffunE.
+rewrite H !run_AStateE {}H2 ?H4 //= !run_AStateE.
+congr (_, _); apply/ffunP => y; rewrite !ffunE.
 move/eqP: H6 => H6; rewrite !inE; do !case: eqP => //=; congruence.
 Qed.
 
 Lemma run_mfind x :
-  run_AState (mfind x) (tt, g) =
-  (tt, compress g x, (find g x, classval g (find g x))).
+  run_AState (mfind x) g = (find g x, classval g (find g x), compress g x).
 Proof.
 case/connectP: (connect_find g x) => xs Hxs H.
 have Hrepr: repr g (last x xs) by rewrite -H; apply Hg.
@@ -533,7 +532,7 @@ Definition union x y :=
     then ffun_set y' (inr v) (ffun_set x' (inl y') g')
     else ffun_set x' (inr v) (ffun_set y' (inl x') g').
 
-Definition munion x y : AState [:: (T, T + R)%type] unit :=
+Definition munion x y : AState {ffun T -> T + R} unit :=
   x' <- mfind x;
   y' <- mfind y;
   if x'.1 == y'.1 then astate_ret tt else
@@ -543,12 +542,12 @@ Definition munion x y : AState [:: (T, T + R)%type] unit :=
     else astate_set y'.1 (inl x'.1);;
          astate_set x'.1 (inr (Rop x'.2 y'.2)).
 
-Lemma run_munion x y : run_AState (munion x y) (tt, g) = (tt, union x y, tt).
+Lemma run_munion x y : run_AState (munion x y) g = (tt, union x y).
 Proof.
-rewrite /union /findeq /= !run_mfind //=; last by apply acycle_compress.
+rewrite /union /munion /findeq !(run_AStateE, run_mfind) //=;
+  last by apply acycle_compress.
 by rewrite find_compress // /(classval (compress _ _)) compress_repr;
-   [ case: (altP eqP) => //= H; case: ifP => /=; rewrite !fin_encodeK |
-     apply Hg ].
+   [ case: (altP eqP); last case: ifP; rewrite !run_AStateE | apply Hg ].
 Qed.
 
 Lemma union_findeq x y a b :
@@ -603,10 +602,10 @@ Extraction Inline
 
 Extract Type Arity AState 0.
 
-Extraction "../../ocaml/wuf_o0.ml" Sign runt_AState runt_AState_ WUF.
+Extraction "../../ocaml/wuf_o0.ml" WUF.
 
 Set Extraction Flag 8175.
 
 Extract Type Arity AState 1.
 
-Extraction "../../ocaml/wuf.ml" Sign runt_AState runt_AState_ WUF.
+Extraction "../../ocaml/wuf.ml" WUF.
