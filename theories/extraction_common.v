@@ -1,6 +1,6 @@
 (* unit *)
 
-Extract Inductive unit => "unit" [" () "].
+Extract Inductive unit => "unit" ["()"].
 
 Extraction Inline locked_with.
 
