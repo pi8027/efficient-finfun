@@ -21,7 +21,7 @@ Proof. by case: m. Qed.
 
 (* Extended comparison predicates *)
 
-CoInductive leq_xor_gtn' m n :
+Variant leq_xor_gtn' m n :
     bool -> bool -> bool -> bool ->
     nat -> nat -> nat -> nat -> nat -> nat -> Set :=
   | LeqNotGtn' of m <= n :
@@ -42,7 +42,7 @@ case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
-CoInductive compare_nat' m n :
+Variant compare_nat' m n :
     bool -> bool -> bool -> bool -> bool ->
     nat -> nat -> nat -> nat -> nat -> nat -> Set :=
   | CompareNatLt' of m < n :

@@ -21,7 +21,7 @@ Definition up_search :
         else fun _ => astate_ret j)
        (erefl (i < j))).
 
-CoInductive up_search_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
+Variant up_search_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   'I_#|I|.+1 * {ffun I -> A} -> Prop :=
   | UpSearchSpec (k : 'I_#|I|.+1) :
     i <= k <= j ->
@@ -68,7 +68,7 @@ Definition down_search :
         else fun _ => astate_ret j)
        (erefl (j < i))).
 
-CoInductive down_search_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
+Variant down_search_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   'I_#|I|.+1 * {ffun I -> A} -> Prop :=
   | DownSearchSpec (k : 'I_#|I|.+1):
     j <= k <= i ->
@@ -125,8 +125,7 @@ Definition partition (pivot : A) (i j : 'I_#|I|.+1) (H : i <= j) :
   AState' {ffun I -> A} 'I_#|I|.+1 :=
   partition_rec pivot i j (@subn' j i H).
 
-CoInductive partition_spec
-            (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
+Variant partition_spec (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   'I_#|I|.+1 * {ffun I -> A} -> Prop :=
   PartitionSpec (p : {perm I}) (k : 'I_#|I|.+1) :
   let arr' := [ffun ix => arr (p ix)] in
@@ -343,8 +342,7 @@ split => [| ixl ixr H2 H3 H4]; rewrite ?permM.
     by rewrite ffunE => /Hcmp_asym Hcmpl; apply (Hcmp_trans Hcmpl Hcmpr).
 Qed.
 
-CoInductive quicksort_spec (arr : {ffun I -> A}) :
-  unit * {ffun I -> A} -> Prop :=
+Variant quicksort_spec (arr : {ffun I -> A}) : unit * {ffun I -> A} -> Prop :=
   QuicksortSpec (p : {perm I}) :
     (forall ix ix' : 'I_#|I|,
        ix < ix' -> cmp (arr (p (fin_decode ix))) (arr (p (fin_decode ix')))) ->
