@@ -73,17 +73,17 @@ Definition natE :=
 
 Module simpl_natarith.
 Lemma lem1_1 ml mr n r : ml = r + n -> ml + mr = r + mr + n.
-Proof. by move => ->; rewrite addnAC. Qed.
+Proof. by move->; rewrite addnAC. Qed.
 Lemma lem1_2 ml mr n r : mr = r + n -> ml + mr = ml + r + n.
-Proof. by move => ->; rewrite addnA. Qed.
+Proof. by move->; rewrite addnA. Qed.
 Lemma lem1_3 m' n r : m' = r + n -> m'.+1 = r.+1 + n.
-Proof. by move => ->; rewrite addSn. Qed.
+Proof. by move->; rewrite addSn. Qed.
 Lemma lem2_1 ml mr n r : ml - n = r -> ml - mr - n = r - mr.
-Proof. by move => <-; rewrite subnAC. Qed.
+Proof. by move<-; rewrite subnAC. Qed.
 Lemma lem2_2 m' n r : m' - n = r -> m'.-1 - n = r.-1.
-Proof. by move => <-; rewrite -subnS -add1n subnDA subn1. Qed.
+Proof. by move<-; rewrite -subnS -add1n subnDA subn1. Qed.
 Lemma lem2_3 m n r : m = r + n -> m - n = r.
-Proof. by move => ->; rewrite addnK. Qed.
+Proof. by move->; rewrite addnK. Qed.
 Lemma lem3_1 m m' m'' nl nl' nl'' nr nr' :
   m - nl = m' - nl' -> m' - nl' - nr = m'' - nl'' - nr' ->
   m - (nl + nr) = m'' - (nl'' + nr').
@@ -123,7 +123,7 @@ Ltac simpl_natarith3 m n :=
       simpl_natarith3 m nl;
       match goal with |- _ = ?m1 -> _ =>
         let H := fresh "H" in
-        move => H; simpl_natarith3 m1 nr; move/(simpl_natarith.lem3_1 H) => {H}
+        move=> H; simpl_natarith3 m1 nr; move/(simpl_natarith.lem3_1 H) => {H}
       end
     | _ =>
       match n with
@@ -140,8 +140,8 @@ Ltac simpl_natarith3 m n :=
 Ltac simpl_natarith :=
   let tac x :=
     lazymatch goal with
-      | |- ?x = ?x -> _ => move => _; rewrite !natE
-      | _ => move => ->; rewrite ?natE
+      | |- ?x = ?x -> _ => move=> _; rewrite !natE
+      | _ => move->; rewrite ?natE
     end in
   repeat
     (match goal with
@@ -161,7 +161,7 @@ Ltac simpl_natarith :=
   try done;
   repeat match goal with
     | H : is_true true |- _ => clear H
-                               (* "move => {H}" may unfold the "is_true" *)
+                               (* "move=> {H}" may unfold the "is_true" *)
   end.
 
 (* elimleq *)
@@ -207,7 +207,7 @@ Ltac replace_minn_maxn :=
     | |- context [minn ?m ?n] => find_minneq_hyp m n
     | |- context [maxn ?m ?n] => find_maxneq_hyp m n
   end;
-  try (let x := fresh "x" in move => x).
+  try (let x := fresh "x" in move=> x).
 
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
@@ -233,7 +233,7 @@ Ltac arith_pop :=
             inj_eq (fin_encode_inj _), inj_eq (fin_decode_inj _)) /=;
   match goal with
   | |- 'I_ _            -> _ => let x := fresh "x" in
-                                let H := fresh "H" in case => /= x H
+                                let H := fresh "H" in case=> /= x H
   | |- _ = true         -> _ => rewrite -/(is_true _)
   | |- is_true false    -> _ => case
   | |- is_true (_ && _) -> _ => case/andP
@@ -245,7 +245,7 @@ Ltac arith_pop :=
                                 (progress case)
   | |- is_true (~~ _)        => apply/negP; rewrite/not
   | |- forall x, _ =>
-    let x := fresh "x" in move => /= x
+    let x := fresh "x" in move=> /= x
   end.
 
 Ltac ssromega :=
@@ -271,7 +271,7 @@ Ltac elimif' :=
      | |- context [if ?m <= ?n then _ else _] => case (leqP' m n)
      | |- context [if ?b then _ else _] => case (ifP b)
    end;
-   move => //=; elimif'; let hyp := fresh "H" in move => hyp) ||
+   move=> //=; elimif'; let hyp := fresh "H" in move=> hyp) ||
   idtac.
 
 Ltac elimif :=
@@ -311,14 +311,14 @@ End ssromega_test.
 
 Lemma well_founded_ordgt (n : nat) : well_founded (fun i j : 'I_n => j < i).
 Proof.
-move => i; elim: {3}n i (leq_addr i n) => [i | m IH i H];
+move=> i; elim: {3}n i (leq_addr i n) => [i | m IH i H];
   first by rewrite add0n => /(leq_trans (ltn_ord i)); rewrite ltnn.
 by constructor => j H0; apply IH, (leq_trans H); rewrite addSnnS leq_add2l.
 Qed.
 
 Lemma well_founded_ordlt (n : nat) : well_founded (fun i j : 'I_n => i < j).
 Proof.
-move => i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
+move=> i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
 by rewrite ltnS => H; constructor => j H0; apply IH, (leq_trans H0).
 Qed.
 

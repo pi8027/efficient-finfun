@@ -5,7 +5,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Lemma eqindexP : Equality.axiom index_eq.
-Proof. by move => x y; apply: (iffP idP) => [/index_eq_prop | <-]; elim: x. Qed.
+Proof. by move=> x y; apply: (iffP idP) => [/index_eq_prop | <-]; elim: x. Qed.
 
 Canonical index_eqMixin := EqMixin eqindexP.
 Canonical index_eqType := Eval hnf in EqType index index_eqMixin.
@@ -23,7 +23,7 @@ Lemma leq_index_refl : reflexive leq_index.
 Proof. by elim. Qed.
 
 Lemma leq_index_trans : transitive leq_index.
-Proof. by elim => [x IH | x IH |] [y | y |] [z | z |] //=; apply IH. Qed.
+Proof. by elim=> [x IH | x IH |] [y | y |] [z | z |] //=; apply IH. Qed.
 
 Lemma leq_index_antisym (x y : index) :
   leq_index x y -> leq_index y x -> x = y.

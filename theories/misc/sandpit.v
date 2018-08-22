@@ -34,11 +34,11 @@ Proof.
 elim: e => [| | el IHl er IHr | el IHl er IHr | el IHl er IHr];
   apply (iffP idP) => //=.
 - by case/andP => /IHl Hl /IHr Hr.
-- by case => /IHl -> /IHr.
+- by case=> /IHl -> /IHr.
 - by case/orP => [/IHl | /IHr] H; [left | right].
-- by case => [/IHl | /IHr] -> //=; rewrite orbT.
+- by case=> [/IHl | /IHr] -> //=; rewrite orbT.
 - by move/implyP => H /IHl /H /IHr.
-- by move => H; apply/implyP => /IHl /H /IHr.
+- by move=> H; apply/implyP => /IHl /H /IHr.
 Qed.
 
 Lemma elim_Prop (e : Bool) : eval_Bool e -> denote_Bool e.

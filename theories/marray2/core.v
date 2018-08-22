@@ -171,7 +171,7 @@ Definition ffun_set
 
 Lemma subst_id (I : finType) (T : Type) (i : I) (x : T) (f : {ffun I -> T}) :
   x = f i -> ffun_set i x f = f.
-Proof. by move ->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
+Proof. by move->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
 
 Inductive AState : Type -> Type -> Type -> Type :=
   | astate_ret_ (S A : Type) : A -> AState S S A
@@ -318,7 +318,7 @@ Proof.
 move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
 move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs => [| i IH] H x; first by case.
-rewrite -{1}addn1 iota_add add0n /= rev_cat //=; case => //= i' xs [] H0 H1.
+rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs [] H0 H1.
 have <-: i' = Ordinal H by apply val_inj.
 by rewrite rev_cons -cats1 foldr_cat /= -(IH (ltnW H)).
 Qed.
@@ -338,8 +338,8 @@ Proof.
 move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
 move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs s => [| i IH] H x;
-  first by case => //= s _; rewrite run_AStateE.
-rewrite -{1}addn1 iota_add add0n /= rev_cat //=; case => //= i' xs s [] H0 H1.
+  first by case=> //= s _; rewrite run_AStateE.
+rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
 have <-: i' = Ordinal H by apply val_inj.
 by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
   case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).
@@ -462,12 +462,12 @@ Qed.
 Lemma assoc
   sig A B C (a : AState sig A) (f : A -> AState sig B) (g : B -> AState sig C) :
   a' <- a; b <- f a'; g b  =m  b <- (a' <- a; f a'); g b.
-Proof. by move => s /=; case: (run_AState a s). Qed.
+Proof. by move=> s /=; case: (run_AState a s). Qed.
 
 Lemma lift_distr I T sig A B (a : AState sig A) (f : A -> AState sig B) :
   astate_lift (a' <- a; f a') =m
   a' <- @astate_lift I T _ _ a; astate_lift (f a').
-Proof. by move => /= [s s']; case: (run_AState a s). Qed.
+Proof. by move=> /= [s s']; case: (run_AState a s). Qed.
 
 Lemma set_return_unit I T sig (i : 'I_#|I|) (x : T) :
   astate_SET (sig := sig) i x  =m  astate_SET i x;; Monad.ret _ tt.
@@ -477,17 +477,17 @@ Lemma get_lift I T sig A B (i : 'I_#|I|)
       (a : AState sig A) (f : A -> T -> AState ((I, T) :: sig) B) :
   x <- astate_GET i; a' <- astate_lift a; f a' x =m
   a' <- astate_lift a; x <- astate_GET i; f a' x.
-Proof. by move => /= [s s']; case: (run_AState a s). Qed.
+Proof. by move=> /= [s s']; case: (run_AState a s). Qed.
 
 Lemma set_lift I T sig A (i : 'I_#|I|) (x : T) (a : AState sig A) :
   astate_SET (sig := sig) i x;; astate_lift a =m
   a' <- astate_lift a; astate_SET i x;; Monad.ret _ a'.
-Proof. by move => /= [s s']; case: (run_AState a s). Qed.
+Proof. by move=> /= [s s']; case: (run_AState a s). Qed.
 
 Lemma get_set_s I T sig (i : 'I_#|I|) :
   x <- @astate_GET I T sig i; astate_SET i x  =m  astate_ret tt.
 Proof.
-by move => /= [s s']; congr (_, _, _); apply/ffunP => j;
+by move=> /= [s s']; congr (_, _, _); apply/ffunP => j;
   rewrite ffunE; case: eqP => //= -> {j}.
 Qed.
 
@@ -499,14 +499,14 @@ Proof. done. Qed.
 Lemma set_set_s I T sig (i : 'I_#|I|) (x y : T) :
   astate_SET (sig := sig) i x;; astate_SET i y  =m  astate_SET i y.
 Proof.
-by move => /= [s s']; congr (_, _, _);
+by move=> /= [s s']; congr (_, _, _);
    apply/ffunP => j; rewrite !ffunE; case: eqP.
 Qed.
 
 Lemma set_get_s I T sig (i : 'I_#|I|) (x : T) :
   astate_SET (sig := sig) i x;; astate_GET i =m
   astate_SET i x;; Monad.ret _ x.
-Proof. by move => /= [s s'] /=; congr (_, _, _); rewrite !ffunE eqxx. Qed.
+Proof. by move=> /= [s s'] /=; congr (_, _, _); rewrite !ffunE eqxx. Qed.
 
 Lemma get_get_d
       I T sig A (i j : 'I_#|I|) (f : T -> T -> AState ((I, T) :: sig) A) :
@@ -519,7 +519,7 @@ Lemma set_set_d I T sig (i j : 'I_#|I|) (x y : T) :
   astate_SET (sig := sig) i x;; astate_SET j y =m
   astate_SET j y;; astate_SET i x.
 Proof.
-move => /= /eqP H [s s']; congr (_, _, _); apply/ffunP => k; rewrite !ffunE;
+move=> /= /eqP H [s s']; congr (_, _, _); apply/ffunP => k; rewrite !ffunE;
   do !case: eqP; try congruence; rewrite -(fin_encodeK k) =>
   /(can_inj (@fin_decodeK _)) H0 /(can_inj (@fin_decodeK _)) H1; congruence.
 Qed.
@@ -529,7 +529,7 @@ Lemma set_get_d I T sig (i j : 'I_#|I|) (x : T) :
   astate_SET (sig := sig) i x;; astate_GET j =m
   y <- astate_GET j; astate_SET i x;; Monad.ret _ y.
 Proof.
-by move => /= H [s s']; congr (_, _, _); rewrite /= !ffunE;
+by move=> /= H [s s']; congr (_, _, _); rewrite /= !ffunE;
    rewrite (inj_eq (can_inj (@fin_decodeK _))) eq_sym (negbTE H).
 Qed.
 *)

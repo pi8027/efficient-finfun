@@ -101,7 +101,7 @@ Definition ffun_set
 
 Lemma subst_id (I : finType) (T : Type) (i : I) (x : T) (f : {ffun I -> T}) :
   x = f i -> ffun_set i x f = f.
-Proof. by move ->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
+Proof. by move->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
 
 (*
 Module Type AStateSig.
@@ -326,7 +326,7 @@ Lemma set_get_d (I : finType) T (i j : 'I_#|I|) (x : T) :
   astate_SET i x;; astate_GET j =m
   y <- astate_GET j; astate_SET i x;; astate_ret y.
 Proof.
-by move => H s; rewrite !run_AStateE; congr (_, _);
+by move=> H s; rewrite !run_AStateE; congr (_, _);
   rewrite !ffunE (can_eq (@fin_decodeK _)) eq_sym (negbTE H).
 Qed.
 
@@ -352,7 +352,7 @@ Proof.
 move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
 move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs => [| i IH] H x; first by case.
-rewrite -{1}addn1 iota_add add0n /= rev_cat //=; case => //= i' xs [] H0 H1.
+rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs [] H0 H1.
 have <-: i' = Ordinal H by apply val_inj.
 by rewrite rev_cons -cats1 foldr_cat /= -(IH (ltnW H)).
 Qed.
@@ -375,8 +375,8 @@ Proof.
 move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
 move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs s => [| i IH] H x;
-  first by case => //= s _; rewrite run_AStateE.
-rewrite -{1}addn1 iota_add add0n /= rev_cat //=; case => //= i' xs s [] H0 H1.
+  first by case=> //= s _; rewrite run_AStateE.
+rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
 have <-: i' = Ordinal H by apply val_inj.
 by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
   case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).

@@ -24,9 +24,9 @@ Definition connect (g : G) (P : pred T) (x y : T) :=
 Lemma invariant_zero (g : G) :
   prod_uncurry (floyd_warshall_zero g) =2 connect g pred0.
 Proof.
-move => x y; rewrite /prod_uncurry /floyd_warshall_zero /connect !ffunE /= orbC.
+move=> x y; rewrite /prod_uncurry /floyd_warshall_zero /connect !ffunE /= orbC.
 case_eq (g (x, y)); case: (altP (x =P y)) => //= Hxy1 /negbT Hxy2.
-by apply/esym/existsP; case => y' /andP [] /connectP [] [] //= _ ->; apply/negP.
+by apply/esym/existsP => -[y'] /andP [] /connectP [] [] //= _ ->; apply/negP.
 Qed.
 
 Lemma invariant_succ (g : G) P y :
@@ -39,7 +39,7 @@ case_eq (g (x, z)) => //= /negbT.
 rewrite H /connect !negb_or negb_exists => /and3P [] H0 H1 _.
 rewrite (negbTE H1) /=; apply/idP/existsP;
   [ case/andP; rewrite !H /connect => /or3P [] H2 /or3P [] H3 //= |
-    case => z' /andP [] /connectP [xs Hxs ->] H2].
+    case=> z' /andP [] /connectP [xs Hxs ->] H2].
 - by exists y; rewrite H3 andbT;
      apply/connectP; exists [:: y] => //=; rewrite eqxx H2.
 - by move/eqP: H3 H2 H0 => -> ->.
@@ -86,10 +86,10 @@ Definition add_distance (n m : option nat) : option nat :=
 Lemma add_distance_dN d : add_distance d None = None. Proof. by case: d. Qed.
 
 Lemma add_distanceC : commutative add_distance.
-Proof. by case => [? |] [? |] //=; rewrite addnC. Qed.
+Proof. by case=> [? |] [? |] //=; rewrite addnC. Qed.
 
 Lemma add_distanceA : associative add_distance.
-Proof. by case => [? |] [? |] [? |] //=; rewrite addnA. Qed.
+Proof. by case=> [? |] [? |] [? |] //=; rewrite addnA. Qed.
 
 Definition lt_distance (n m : option nat) : bool :=
   match n, m with
@@ -134,13 +134,12 @@ Definition floyd_warshall_succ (g : G) (y : T) : G :=
    if lt_distance xyz (g (x, z)) then xyz else g (x, z)].
 
 Definition m_floyd_warshall : AState {ffun T * T -> option nat} unit :=
-  let iterate := @miterate_revfin T unit _ in
-  iterate (fun i _ => astate_set (i, i) (Some 0)) tt;;
-  iterate (fun i _ =>
-    iterate (fun j _ =>
+  miterate_revfin (fun i _ => astate_set (i, i) (Some 0)) tt;;
+  miterate_revfin (fun i _ =>
+    miterate_revfin (fun j _ =>
       d_ji <- astate_get (j, i);
       if d_ji isn't Some dji then astate_ret tt else
-      iterate (fun k _ =>
+      miterate_revfin (fun k _ =>
         d_ik <- astate_get (i, k);
         if d_ik isn't Some dik then astate_ret tt else
         d_jk <- astate_get (j, k);
@@ -154,8 +153,7 @@ Definition m_floyd_warshall : AState {ffun T * T -> option nat} unit :=
 
 End Floyd_Warshall.
 
-Definition floyd_warshall
-           (n : nat) (g : {ffun 'I_n * 'I_n -> option nat}) :
+Definition floyd_warshall (n : nat) (g : {ffun 'I_n * 'I_n -> option nat}) :
   {ffun 'I_n * 'I_n -> option nat} :=
   iterate_revfin
     (fun i => @floyd_warshall_succ [finType of 'I_n] ^~ i)
@@ -164,7 +162,7 @@ Definition floyd_warshall
 Definition floyd_warshall_fast
            (n : nat) (g : {ffun 'I_n * 'I_n -> option nat}) :
   {ffun 'I_n * 'I_n -> option nat} :=
-  snd (run_AState (m_floyd_warshall _) g).
+  (run_AState (m_floyd_warshall _) g).2.
 
 End Floyd_Warshall.
 
