@@ -121,7 +121,7 @@ Definition denote_booleq (el er : boolexpr) : Prop :=
 Lemma boolexprP (e : boolexpr) : reflect (denote_boolexpr e) (eval_boolexpr e).
 Proof.
 elim: e => /=;
-  try by repeat (elim/Bool.reflect_rect || move => ?); constructor; tauto.
+  try by repeat (elim/Bool.reflect_rect || move=> ?); constructor; tauto.
 - case; constructor => /=; lia.
 - exact: @leP.
 - exact: @eqP.
@@ -130,8 +130,7 @@ Qed.
 Lemma booleqP (el er : boolexpr) :
   (eval_boolexpr el = eval_boolexpr er) <-> denote_booleq el er.
 Proof.
-do 2 case: boolexprP; move => H H0; split => //;
-  case: el H H0; case: er => /=; tauto.
+do 2 case: boolexprP; move=> H H0; split; case: el H H0; case: er => //=; tauto.
 Qed.
 
 Lemma maxE (m n : nat) : maxn m n = max m n.
@@ -191,7 +190,7 @@ Ltac natop_ssr2coq :=
            | H : context [minn _ _] |- _ => rewrite ?(maxE, minE) in H
          end.
 
-Ltac ssromega := move => *; simpl in *; natop_ssr2coq; bool2Prop; lia.
+Ltac ssromega := move=> *; simpl in *; natop_ssr2coq; bool2Prop; lia.
 
 End ssromega.
 
