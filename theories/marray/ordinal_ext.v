@@ -65,229 +65,137 @@ Proof.
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
-(* simpl_natarith *)
-
-Definition natE :=
-  (addSn, addnS, add0n, addn0, sub0n, subn0, subSS,
-   min0n, minn0, max0n, maxn0, leq0n).
-
-Module simpl_natarith.
-Lemma lem1_1 ml mr n r : ml = r + n -> ml + mr = r + mr + n.
-Proof. by move->; rewrite addnAC. Qed.
-Lemma lem1_2 ml mr n r : mr = r + n -> ml + mr = ml + r + n.
-Proof. by move->; rewrite addnA. Qed.
-Lemma lem1_3 m' n r : m' = r + n -> m'.+1 = r.+1 + n.
-Proof. by move->; rewrite addSn. Qed.
-Lemma lem2_1 ml mr n r : ml - n = r -> ml - mr - n = r - mr.
-Proof. by move<-; rewrite subnAC. Qed.
-Lemma lem2_2 m' n r : m' - n = r -> m'.-1 - n = r.-1.
-Proof. by move<-; rewrite -subnS -add1n subnDA subn1. Qed.
-Lemma lem2_3 m n r : m = r + n -> m - n = r.
-Proof. by move->; rewrite addnK. Qed.
-Lemma lem3_1 m m' m'' nl nl' nl'' nr nr' :
-  m - nl = m' - nl' -> m' - nl' - nr = m'' - nl'' - nr' ->
-  m - (nl + nr) = m'' - (nl'' + nr').
-Proof. by rewrite !subnDA => -> ->. Qed.
-Lemma lem3_2 m n r : m - (n + 1) = r -> m - n.+1 = r.
-Proof. by rewrite addn1. Qed.
-Lemma lem3_3 m n r : m - n = r -> m - n = r - 0.
-Proof. by rewrite subn0. Qed.
-Lemma lem4_1 m n m' n' : m - n = m' - n' -> (m <= n) = (m' <= n').
-Proof. by rewrite -!subn_eq0 => ->. Qed.
-End simpl_natarith.
-
-Ltac simpl_natarith1 m n :=
-  match m with
-    | n => constr: (esym (add0n n))
-    | ?ml + ?mr => let H := simpl_natarith1 ml n in
-                   constr: (simpl_natarith.lem1_1 mr H)
-    | ?ml + ?mr => let H := simpl_natarith1 mr n in
-                   constr: (simpl_natarith.lem1_2 ml H)
-    | ?m'.+1 => let H := simpl_natarith1 m' n in
-                constr: (simpl_natarith.lem1_3 H)
-    | ?m'.+1 => match n with 1 => constr: (esym (addn1 m')) end
-  end.
-
-Ltac simpl_natarith2 m n :=
-  match m with
-    | ?ml - ?mr => let H := simpl_natarith2 ml n in
-                   constr: (simpl_natarith.lem2_1 mr H)
-    | ?m'.-1 => let H := simpl_natarith2 m' n in
-                constr: (simpl_natarith.lem2_2 H)
-    | _ => let H := simpl_natarith1 m n in constr: (simpl_natarith.lem2_3 H)
-  end.
-
-Ltac simpl_natarith3 m n :=
-  lazymatch n with
-    | ?nl + ?nr =>
-      simpl_natarith3 m nl;
-      match goal with |- _ = ?m1 -> _ =>
-        let H := fresh "H" in
-        move=> H; simpl_natarith3 m1 nr; move/(simpl_natarith.lem3_1 H) => {H}
-      end
-    | _ =>
-      match n with
-        | ?n'.+1 =>
-          lazymatch n' with
-            | 0 => fail
-            | _ => simpl_natarith3 m (n' + 1); move/simpl_natarith.lem3_2
-          end
-        | _ => let H := simpl_natarith2 m n in move: (simpl_natarith.lem3_3 H)
-        | _ => move: (erefl (m - n))
-      end
-  end.
-
-Ltac simpl_natarith :=
-  let tac x :=
-    lazymatch goal with
-      | |- ?x = ?x -> _ => move=> _; rewrite !natE
-      | _ => move->; rewrite ?natE
-    end in
-  repeat
-    (match goal with
-       H : context [?m - ?n] |- _ => move: H; simpl_natarith3 m n; tac 0 => H
-     end ||
-     match goal with
-       |- context [?m - ?n] => simpl_natarith3 m n; tac 0
-     end ||
-     match goal with
-       H : context [?m <= ?n] |- _ =>
-       move: H; simpl_natarith3 m n; move/simpl_natarith.lem4_1; tac 0 => H
-     end ||
-     match goal with
-       |- context [?m <= ?n] =>
-         simpl_natarith3 m n; move/simpl_natarith.lem4_1; tac 0
-     end);
-  try done;
-  repeat match goal with
-    | H : is_true true |- _ => clear H
-                               (* "move=> {H}" may unfold the "is_true" *)
-  end.
-
-(* elimleq *)
-
-Tactic Notation "elimleq" :=
-  match goal with |- is_true (?n <= ?m) -> _ =>
-    is_var m;
-    (let H := fresh "H" in move/subnKC => H; rewrite <- H in *; clear H);
-    let rec tac :=
-      lazymatch reverse goal with
-        | H : context [m] |- _ => move: H; tac => H
-        | _ => move: {m} (m - n) => m; rewrite ?(addKn, addnK)
-      end in tac; simpl_natarith
-  end.
-
-Tactic Notation "elimleq" constr(H) := move: H; elimleq.
-
 (* ssromega *)
 
-Tactic Notation "find_minneq_hyp" constr(m) constr(n) :=
-  match goal with
-    | H : is_true (m <= n) |- _ => rewrite (minn_idPl H)
-    | H : is_true (n <= m) |- _ => rewrite (minn_idPr H)
-    | H : is_true (m < n) |- _ => rewrite (minn_idPl (ltnW H))
-    | H : is_true (n < m) |- _ => rewrite (minn_idPr (ltnW H))
-    | |- _ => case (leqP' m n)
-  end; rewrite ?natE.
+Module ssromega.
 
-Tactic Notation "find_maxneq_hyp" constr(m) constr(n) :=
-  match goal with
-    | H : is_true (m <= n) |- _ => rewrite (maxn_idPr H)
-    | H : is_true (n <= m) |- _ => rewrite (maxn_idPl H)
-    | H : is_true (m < n) |- _ => rewrite (maxn_idPr (ltnW H))
-    | H : is_true (n < m) |- _ => rewrite (maxn_idPl (ltnW H))
-    | |- _ => case (leqP' m n)
-  end; rewrite ?natE.
+Inductive boolexpr :=
+  | be_atom            of bool
+  | be_true
+  | be_false
+  | be_and             of boolexpr & boolexpr
+  | be_or              of boolexpr & boolexpr
+  | be_impl            of boolexpr & boolexpr
+  | be_xor             of boolexpr & boolexpr
+  | be_neg             of boolexpr
+  | be_leqn            of nat & nat
+  | be_eq (T : eqType) of T & T.
 
-Ltac replace_minn_maxn :=
-  try (rewrite <- minnE in * || rewrite <- maxnE in * );
-  match goal with
-    | H : context [minn ?m ?n] |- _ => move: H; find_minneq_hyp n m => H
-    | H : context [maxn ?m ?n] |- _ => move: H; find_maxneq_hyp n m => H
-    | |- context [minn ?m ?n] => find_minneq_hyp m n
-    | |- context [maxn ?m ?n] => find_maxneq_hyp m n
-  end;
-  try (let x := fresh "x" in move=> x).
-
-Ltac arith_hypo_ssrnat2coqnat :=
-  match goal with
-    | H : is_true (_ <  _) |- _ => move/ltP in H
-    | H : is_true (_ <= _) |- _ => move/leP in H
-    | H : is_true (_ == _) |- _ => move/eqP in H
-    | H : is_true (_ != _) |- _ => move/eqP in H
+Fixpoint eval_boolexpr (e : boolexpr) : bool :=
+  match e with
+    | be_atom b => b
+    | be_true => true
+    | be_false => false
+    | be_and el er => eval_boolexpr el && eval_boolexpr er
+    | be_or el er => eval_boolexpr el || eval_boolexpr er
+    | be_impl el er => eval_boolexpr el ==> eval_boolexpr er
+    | be_xor el er => eval_boolexpr el (+) eval_boolexpr er
+    | be_neg e => ~~ eval_boolexpr e
+    | be_leqn n m => n <= m
+    | be_eq _ x y => x == y
   end.
 
-Ltac arith_goal_ssrnat2coqnat :=
-  match goal with
-    | |- is_true (_ && _) => apply/andP; split
-    | |- is_true (_ || _) => apply/orP
-    | |- is_true (_ <  _) => apply/ltP
-    | |- is_true (_ <= _) => apply/leP
-    | |- is_true (_ == _) => apply/eqP
-    | |- is_true (_ != _) => apply/eqP
+Fixpoint denote_boolexpr (e : boolexpr) : Prop :=
+  match e with
+    | be_atom b => (0 < nat_of_bool b)%coq_nat
+    | be_true => True
+    | be_false => False
+    | be_and el er => denote_boolexpr el /\ denote_boolexpr er
+    | be_or el er => denote_boolexpr el \/ denote_boolexpr er
+    | be_impl el er => denote_boolexpr el -> denote_boolexpr er
+    | be_xor el er => ~ (denote_boolexpr el <-> denote_boolexpr er)
+    | be_neg e => ~ denote_boolexpr e
+    | be_leqn n m => (n <= m)%coq_nat
+    | be_eq _ x y => x = y
   end.
 
-Ltac arith_pop :=
-  rewrite -?(leqNgt, ltnNge)
-          ?(fin_encodeK, fin_decodeK,
-            inj_eq (fin_encode_inj _), inj_eq (fin_decode_inj _)) /=;
-  match goal with
-  | |- 'I_ _            -> _ => let x := fresh "x" in
-                                let H := fresh "H" in case=> /= x H
-  | |- _ = true         -> _ => rewrite -/(is_true _)
-  | |- is_true false    -> _ => case
-  | |- is_true (_ && _) -> _ => case/andP
-  | |- is_true (_ || _) -> _ => case/orP
-  | |- is_true (_ <= _) -> _ => elimleq
-  | |- is_true (_ == _) -> _ => move/eqP
-  | |- ~ is_true _      -> _ => move/negP
-  | |- @eq ?T _ _       -> _ => move/fin_encode_inj || move/fin_decode_inj ||
-                                (progress case)
-  | |- is_true (~~ _)        => apply/negP; rewrite/not
-  | |- forall x, _ =>
-    let x := fresh "x" in move=> /= x
+Definition denote_booleq (el er : boolexpr) : Prop :=
+  match el, er with
+  | be_true, _ => denote_boolexpr er
+  | be_false, _ => ~ denote_boolexpr er
+  | _, be_true => denote_boolexpr el
+  | _, be_false => ~ denote_boolexpr el
+  | _, _ => denote_boolexpr el <-> denote_boolexpr er
   end.
 
-Ltac ssromega :=
-  repeat (match goal with (* push all hypotheses *)
-            x : _ |- _ => subst x || (move: x; try (move: x; fail 2))
-          end);
-  repeat arith_pop;
-  do ?replace_minn_maxn;
-  try done;
-  do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec,
-             predn', subn' in *;
-  do ?arith_hypo_ssrnat2coqnat;
-  do ?arith_goal_ssrnat2coqnat;
-  simpl Equality.sort in *;
-  lia.
-(*
-  omega.
-*)
+Lemma boolexprP (e : boolexpr) : reflect (denote_boolexpr e) (eval_boolexpr e).
+Proof.
+elim: e => /=;
+  try by repeat (elim/Bool.reflect_rect || move => ?); constructor; tauto.
+- case; constructor => /=; lia.
+- exact: @leP.
+- exact: @eqP.
+Qed.
 
-Ltac elimif' :=
-  (match goal with
-     | |- context [if ?m < ?n then _ else _] => case (leqP' n m)
-     | |- context [if ?m <= ?n then _ else _] => case (leqP' m n)
-     | |- context [if ?b then _ else _] => case (ifP b)
-   end;
-   move=> //=; elimif'; let hyp := fresh "H" in move=> hyp) ||
-  idtac.
+Lemma booleqP (el er : boolexpr) :
+  (eval_boolexpr el = eval_boolexpr er) <-> denote_booleq el er.
+Proof.
+do 2 case: boolexprP; move => H H0; split => //;
+  case: el H H0; case: er => /=; tauto.
+Qed.
 
-Ltac elimif :=
-  elimif'; simpl_natarith;
-  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end.
+Lemma maxE (m n : nat) : maxn m n = max m n.
+Proof. rewrite/maxn; case: leqP => /leP; lia. Qed.
 
-Ltac elimif_omega :=
-  elimif;
-  try (repeat match goal with
-    | |- @eq nat _ _ => idtac
-    | |- _ => f_equal
-  end; ssromega).
+Lemma minE (m n : nat) : minn m n = min m n.
+Proof. rewrite/minn; case: leqP => /leP; lia. Qed.
 
-(* congruence' *)
+Ltac reify_boolexpr e :=
+  lazymatch e with
+    | true => be_true
+    | false => be_false
+    | ?el && ?er =>
+      let el' := reify_boolexpr el in
+      let er' := reify_boolexpr er in uconstr: (be_and el' er')
+    | ?el || ?er =>
+      let el' := reify_boolexpr el in
+      let er' := reify_boolexpr er in uconstr: (be_or el' er')
+    | ?el ==> ?er =>
+      let el' := reify_boolexpr el in
+      let er' := reify_boolexpr er in uconstr: (be_impl el' er')
+    | ?el (+) ?er =>
+      let el' := reify_boolexpr el in
+      let er' := reify_boolexpr er in uconstr: (be_xor el' er')
+    | ~~ ?e =>
+      let e' := reify_boolexpr e in uconstr: (be_neg e')
+    | ?n <= ?m => uconstr: (be_leqn n m)
+    | @eq_op ?T ?x ?y => uconstr: (@be_eq T x y)
+    | _ => uconstr: (be_atom e)
+  end.
 
-Ltac congruence' := simpl; try (move: addSn addnS; congruence).
+Ltac bool2Prop :=
+  unfold is_true in *;
+  repeat
+    match goal with
+      | H : context [@eq bool ?bl ?br] |- _ =>
+        let el := reify_boolexpr bl in
+        let er := reify_boolexpr br in
+        change (bl = br) with (eval_boolexpr el = eval_boolexpr er) in H;
+        setoid_rewrite booleqP in H
+      | |- context [@eq bool ?bl ?br] =>
+        let el := reify_boolexpr bl in
+        let er := reify_boolexpr br in
+        change (bl = br) with (eval_boolexpr el = eval_boolexpr er);
+        setoid_rewrite booleqP
+    end;
+  cbv [denote_booleq denote_boolexpr Equality.sort nat_eqType] in *.
+
+Ltac natop_ssr2coq :=
+  unfold predn', subn' in *;
+  change addn with plus in *;
+  change subn with minus in *;
+  change muln with Init.Nat.mul in *;
+  rewrite ?(maxE, minE);
+  repeat lazymatch goal with
+           | H : context [maxn _ _] |- _ => rewrite ?(maxE, minE) in H
+           | H : context [minn _ _] |- _ => rewrite ?(maxE, minE) in H
+         end.
+
+Ltac ssromega := move => *; simpl in *; natop_ssr2coq; bool2Prop; lia.
+
+End ssromega.
+
+Ltac ssromega := ssromega.ssromega.
 
 (* test code for ssromega *)
 
@@ -298,8 +206,8 @@ Goal forall m n, maxn (minn m n) m = m. ssromega. Qed.
 Goal forall m n, maxn n (minn m n) = n. ssromega. Qed.
 Goal forall m n, maxn m n = m + (n - m). ssromega. Qed.
 Goal forall m n, minn m n = m - (m - n). ssromega. Qed.
-Goal forall m n, minn m n = m <-> m <= n. split; ssromega. Qed.
-Goal forall m n, maxn m n = n <-> m <= n. split; ssromega. Qed.
+Goal forall m n, minn m n = m <-> m <= n. ssromega. Qed.
+Goal forall m n, maxn m n = n <-> m <= n. ssromega. Qed.
 Goal forall m n, maxn m n - minn m n = (m - n) + (n - m). ssromega. Qed.
 Goal forall m n, minn m n - maxn m n = 0. ssromega. Qed.
 Goal forall m n, minn m n + maxn m n = m + n. ssromega. Qed.
@@ -325,11 +233,8 @@ Qed.
 Definition lshift' (m n : nat) (i : 'I_n) : 'I_(m + n) :=
   @Ordinal (m + n) i (leq_trans (ltn_ord i) (leq_addl m n)).
 
-Lemma rshift'_subproof (m n : nat) (i : 'I_m) : n + i < m + n.
-Proof. by rewrite addnC ltn_add2r ltn_ord. Qed.
-
 Definition rshift' (m n : nat) (i : 'I_m) : 'I_(m + n) :=
-  @Ordinal (m + n) (n + i) (rshift'_subproof n i).
+  @Ordinal (m + n) (n + i) ltac:(by rewrite addnC ltn_add2r ltn_ord).
 
 Definition ltnidx_l (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
   @Ordinal n i (leq_trans H (ltn_ord j)).
@@ -337,20 +242,11 @@ Definition ltnidx_l (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
 Definition ltnidx_ls (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n.+1 :=
   @Ordinal n.+1 i.+1 (leq_trans H (ltn_ord j)).
 
-Lemma ltnidx_rp_subproof1 (n i : nat) (j : 'I_n.+1) : i < j -> 0 < j.
-Proof. by case: j => [] []. Qed.
-
-Lemma ltnidx_rp_subproof2 (n i : nat) (j : 'I_n.+1) : i < j -> j.-1 < n.
-Proof. by case: j => [] []. Qed.
-
-Definition ltnidx_rp (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
-  @Ordinal n (@predn' j (ltnidx_rp_subproof1 H)) (ltnidx_rp_subproof2 H).
-
-Lemma ord_pred_subproof (n : nat) (i : 'I_n) : i.-1 < n.
-Proof. by case: i => [] [] //= i /ltnW. Qed.
+Definition ltnidx_rp (n : nat) (j : 'I_n.+1) (H : 0 < j) : 'I_n :=
+  @Ordinal n (@predn' j H) ltac:(by case: j H => -[]).
 
 Definition ord_pred (n : nat) (i : 'I_n) : 'I_n :=
-  @Ordinal n i.-1 (ord_pred_subproof i).
+  @Ordinal n i.-1 ltac:(by case: i => -[] //= i /ltnW).
 
 Definition ord_pred' (n : nat) (i : 'I_n) (H : 0 < i) : 'I_n :=
-  @Ordinal n (@predn' i H) (ord_pred_subproof i).
+  @Ordinal n (@predn' i H) ltac:(by case: i H => -[] //= i /ltnW).
