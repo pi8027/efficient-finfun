@@ -45,15 +45,13 @@ elim/Acc_rect: i / (well_founded_ordgt i) (well_founded_ordgt i) Hij
   => i _ IH Hi Hij; rewrite -Fix_F_eq /=.
 case: {2 3}(i < j) (erefl (i < j)) => H; rewrite !run_AStateE;
   first case: ifP => H0; rewrite ?run_AStateE.
-- by constructor; try ssromega;
-    move=> k' H1 H2; congr (f (arr (_ _))): H0; apply/ord_inj.
-- by case: {IH Hi} (IH (ltnidx_ls H)) => //= k /andP [] H1 H2 H3 H4;
+- constructor; last ssromega.
+  move=> k' H1 H2; congr (f (arr (_ _))): H0; ssromega.
+- case: {IH Hi} (IH (ltnidx_ls H)) => //= k /andP [] H1 H2 H3 H4;
     rewrite !run_AStateE; constructor=> // i';
     rewrite leq_eqVlt andb_orl => /orP []; auto=> /andP [] /eqP Hii' _;
-    congr (~~ (f (arr (_ _)))): (negbT H0); apply ord_inj.
-- by move/negbT/(conj Hij)/andP: H;
-    rewrite -leqNgt -eqn_leq => /eqP/ord_inj Hij';
-    subst j; constructor; ssromega.
+    congr (~~ (f (arr (_ _)))): (negbT H0); ssromega.
+- constructor; ssromega.
 Qed.
 
 Definition down_search (i j : 'I_#|I|.+1) :
@@ -96,17 +94,14 @@ elim/Acc_rect: i / (well_founded_ordlt i) (well_founded_ordlt i) Hij
   => i _ IH Hi Hji; rewrite -Fix_F_eq /=.
 case: {2 3}(j < i) (erefl (j < i)) => H; rewrite !run_AStateE;
   first case: ifP => [| /negbT] H0; rewrite ?run_AStateE.
-- by constructor; try ssromega; move=> k' H1 H2;
-    congr (f (arr (_ _))): H0; apply/ord_inj; rewrite /= /predn' H1.
-- case: {IH} (IH (ord_pred' (ltnm0m H)));
-    first by simpl; case: (nat_of_ord i) H {H0}.
+- constructor; try ssromega; move=> k' H1 H2;
+    congr (f (arr (_ _))): H0; ssromega.
+- case: {IH} (IH (ord_pred' (ltnm0m H))); first ssromega.
   move=> k Hk H1 H2; rewrite !run_AStateE; constructor => // i' /andP [] H3.
   rewrite -(ltn_predK H) ltnS leq_eqVlt => /orP [/eqP |] H4.
-  + by congr (~~ (f (arr (_ _)))): H0; apply/ord_inj; rewrite H4.
+  + by congr (~~ (f (arr (_ _)))): H0; ssromega.
   + by apply H2; rewrite H3.
-- move/negbT/(conj Hji)/andP: H;
-    rewrite -leqNgt -eqn_leq => /eqP /ord_inj Hji';
-    subst j; constructor; ssromega.
+- constructor; ssromega.
 Qed.
 
 End Search.
@@ -183,28 +178,19 @@ case: {2 3}(i'.+1 < j') (erefl (i'.+1 < j')) => [Hij' | /negbT];
     by apply/ffunP => ix; rewrite !ffunE permM.
   set arr' := [ffun ix => arr _] => Hp Hpart; constructor.
   + rewrite perm_onM //; [ apply/(subset_trans Hp) | ]; apply/subsetP => ix;
-      rewrite !inE; try ssromega.
-    move/eqP; case: tpermP => // /eqP;
-      rewrite -(can2_eq (@fin_encodeK _) (@fin_decodeK _)) => /eqP -> _ //=;
-      ssromega.
-  + move=> ix /andP [H H0];
-      case: (boolP (i' < ix < j'.-1)) => [/Hpart -> // | H1]; apply/esym.
-    rewrite ffunE permE /= (out_perm Hp) ?inE ?fin_decodeK // permE /=
-            !(inj_eq (@fin_decode_inj _)) -!(inj_eq (@ord_inj _)) /=.
-    case: eqP => H2; last case: eqP => H3.
-    * rewrite -(negbK (cmp _ _)) Hj'1; ssromega.
-    * rewrite Hi'1; ssromega.
-    * case/nandP: H1; rewrite -leqNgt -(negbK (cmp _ _)) => H4;
-        [ rewrite Hi'2 | rewrite Hj'2 ]; ssromega.
+      rewrite !inE; first ssromega.
+    rewrite -(inj_eq (@fin_encode_inj _)) (inj_tperm _ _ _ (@fin_encode_inj _))
+            !fin_decodeK; case: tpermP; ssromega.
+  + move=> ix /andP [H H0]; case: (boolP (i' < ix < j'.-1)) => [/Hpart // | H1].
+    rewrite ffunE permE /= (out_perm Hp) ?inE ?fin_decodeK //
+            -(inj_tperm _ _ _ (@fin_decode_inj _)).
+    move: (Hj'1 (ltnidx_rp (ltnm0m Hij'))) (Hi'1 (ltnidx_l (ltnW Hij')))
+          (Hi'2 ix) (Hj'2 ix); case: tpermP; ssromega.
 - rewrite leq_eqVlt ltnS {2}(Hid_arr arr) => Hij'; constructor;
-  rewrite ?perm_on1 //= => ix /andP [H H0]; rewrite ffunE permE.
-  case/predU1P: Hij' => Hij'.
-  + have Hij'' : i' < j' by rewrite Hij'.
-    move: Hi'0 Hj'0 (Hi'1 (ltnidx_l Hij'') erefl) (Hj'1 (ltnidx_l Hij'') Hij').
-    by rewrite -Hij' [j' in _ < j']Hij' ltnS
-      => /andP [-> _] /andP [_ ->] -> //= /(_ erefl).
-  + case: leqP => H1; last (by apply/negbTE/Hi'2; rewrite H).
-    by rewrite -(negbK (cmp _ _)) Hj'2 // H0 (leq_trans Hij').
+    rewrite ?perm_on1 //= => ix /andP [H H0]; rewrite ffunE permE.
+  case/predU1P: Hij' => Hij'; last by move: (Hi'2 ix) (Hj'2 ix); ssromega.
+  have Hij'' : i' < j' by rewrite Hij'.
+  move: (Hi'1 (ltnidx_l Hij'') erefl) (Hj'1 (ltnidx_l Hij'') Hij'); ssromega.
 Qed.
 
 Definition quicksort_rec :
@@ -282,25 +268,22 @@ set arr' := ffun_set _ _ _.
 move=> Hpp Hpart.
 have {arr'} ->:
      arr' = [ffun ix => arr ((tperm (fin_decode ix_part)
-                                    (fin_decode ix_pivot) * pp)%g ix)] by
+                                    (fin_decode ix_pivot) * pp)%g ix)].
   apply/ffunP => ix; rewrite !ffunE permM permE /=;
   do !case: eqP => // _; rewrite (out_perm Hpp) // inE fin_decodeK; ssromega.
-case: {IHj} (IHj (ord_pred' _)); first by move=> {ix_part}; ssromega.
+case: {IHj} (IHj (ord_pred' _)); first by ssromega.
 rewrite /= /predn' => /= pl Hpl Hsortl.
-case: IHi; first by case/andP: (Hk).
-move=> /= pr Hpr.
-set f := [ffun _ => _].
-have {f} ->:
-     f = [ffun ix => arr ((pr * pl * tperm (fin_decode ix_part)
-                                           (fin_decode ix_pivot) * pp)%g ix)] by
-  apply/ffunP => ?; rewrite !ffunE !permM.
+case: IHi => [| pr arr' Hpr]; first by case/andP: (Hk).
+have {arr'} ->:
+     arr' = [ffun ix => arr ((pr * pl * tperm (fin_decode ix_part)
+                                              (fin_decode ix_pivot) * pp)%g ix)]
+  by apply/ffunP => ?; rewrite !ffunE !permM.
 move=> Hsortr.
 apply QuicksortRecSpec_ => [| ix ix' H H0 H1]; first by
   do !apply perm_onM; [ apply (subset_trans Hpr) | apply (subset_trans Hpl) | |
                         apply (subset_trans Hpp)];
-  apply/subsetP => x; rewrite !inE; try (move: (Hk); ssromega);
-  case: tpermP; rewrite ?eqxx => // -> _; rewrite fin_decodeK;
-  move: (Hk); ssromega.
+  apply/subsetP => x; rewrite !inE; try ssromega;
+  case: tpermP; rewrite ?eqxx => // -> _; rewrite fin_decodeK; ssromega.
 rewrite !ffunE !permM.
 case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
 - rewrite !(out_perm Hpr); try by rewrite inE fin_decodeK; ssromega.
@@ -311,8 +294,8 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
   rewrite (out_perm (x := pr _) Hpl); last by rewrite !inE; ssromega.
   apply Hcmp_trans with (arr (fin_decode ix_pivot)); first apply Hcmp_asym;
     rewrite -(fin_encodeK (tperm _ _ _)) -(ffunE (fun ix => arr (pp ix))) Hpart
-            (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK permE /=
-            -!(inj_eq (@ord_inj _)) /=; do !case: eqP; ssromega.
+            (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
+    case: tpermP; ssromega.
 - move/ord_inj in H3; subst ix' => {H2}.
   rewrite !(out_perm Hpr, out_perm (x := _ ix_part) Hpl, tpermL,
             out_perm (x := _ ix_pivot) Hpp);
@@ -320,16 +303,15 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
   move: (perm_closed (fin_decode ix) Hpl); rewrite !inE fin_decodeK /= => H2.
   apply Hcmp_asym.
   rewrite -[X in pp X]fin_encodeK -(ffunE (fun ix => arr (pp ix))) Hpart
-          (inj_tperm _ _ _ (@fin_encode_inj _)) fin_decodeK permE /=
-          -!(inj_eq (@ord_inj _)) fin_decodeK; do !case: eqP; ssromega.
+          (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
+    case: tpermP; ssromega.
 - move: (Hsortr ix ix'); rewrite !ffunE !permM; apply; ssromega.
 - move/ord_inj in H2; subst ix => {H3}.
   move: (perm_closed (fin_decode ix') Hpr); rewrite !inE !fin_decodeK => H2.
   rewrite (out_perm Hpr) ?(out_perm Hpl) ?tpermL 1?(out_perm Hpp);
-    try by rewrite ?inE ?fin_decodeK; move: (Hk); ssromega.
+    try by rewrite ?inE ?fin_decodeK; ssromega.
   rewrite -(fin_encodeK (pr _)) -(inj_tperm _ _ _ (@fin_decode_inj _))
-          -(ffunE (fun ix => arr (pp ix))) tpermD ?Hpart -?(inj_eq (@ord_inj _));
-    move: (Hk); ssromega.
+          -(ffunE (fun ix => arr (pp ix))) tpermD ?Hpart; ssromega.
 Qed.
 
 Variant quicksort_spec (arr : {ffun I -> A}) : unit * {ffun I -> A} -> Prop :=
@@ -355,6 +337,7 @@ End Quicksort.
 End Quicksort.
 
 Require Import extraction_ocaml.
+
 Unset Extraction SafeImplicits.
 
 Extraction Implicit Quicksort.partition [I].

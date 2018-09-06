@@ -34,7 +34,7 @@ Lemma leqP' m n : leq_xor_gtn' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
+rewrite (maxnC n) (minnC n); case: (leqP m n) => H.
 - rewrite (maxn_idPr H) (minn_idPl H).
   by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
 - rewrite (ltnW H) ltnNge leq_eqVlt H orbT
@@ -57,8 +57,8 @@ Lemma ltngtP' m n : compare_nat' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-(case: (ltngtP m n) => H; last by rewrite -H maxnn minnn subnn; constructor);
-  rewrite (maxnC n) (minnC n).
+rewrite (maxnC n) (minnC n).
+case: (ltngtP m n) => H; last by rewrite -H maxnn minnn subnn; constructor.
 - rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 - rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
@@ -70,16 +70,18 @@ Qed.
 Module ssromega.
 
 Inductive boolexpr :=
-  | be_atom            of bool
+  | be_atom                of bool
   | be_true
   | be_false
-  | be_and             of boolexpr & boolexpr
-  | be_or              of boolexpr & boolexpr
-  | be_impl            of boolexpr & boolexpr
-  | be_xor             of boolexpr & boolexpr
-  | be_neg             of boolexpr
-  | be_leqn            of nat & nat
-  | be_eq (T : eqType) of T & T.
+  | be_and                 of boolexpr & boolexpr
+  | be_or                  of boolexpr & boolexpr
+  | be_impl                of boolexpr & boolexpr
+  | be_xor                 of boolexpr & boolexpr
+  | be_neg                 of boolexpr
+  | be_leqn                of nat & nat
+  | be_booleq              of boolexpr & boolexpr
+  | be_ordeq (n : nat)     of 'I_n & 'I_n
+  | be_polyeq (T : eqType) of T & T.
 
 Fixpoint eval_boolexpr (e : boolexpr) : bool :=
   match e with
@@ -92,7 +94,9 @@ Fixpoint eval_boolexpr (e : boolexpr) : bool :=
     | be_xor el er => eval_boolexpr el (+) eval_boolexpr er
     | be_neg e => ~~ eval_boolexpr e
     | be_leqn n m => n <= m
-    | be_eq _ x y => x == y
+    | be_booleq el er => eval_boolexpr el == eval_boolexpr er
+    | be_ordeq _ i j => i == j
+    | be_polyeq _ x y => x == y
   end.
 
 Fixpoint denote_boolexpr (e : boolexpr) : Prop :=
@@ -106,7 +110,9 @@ Fixpoint denote_boolexpr (e : boolexpr) : Prop :=
     | be_xor el er => ~ (denote_boolexpr el <-> denote_boolexpr er)
     | be_neg e => ~ denote_boolexpr e
     | be_leqn n m => (n <= m)%coq_nat
-    | be_eq _ x y => x = y
+    | be_booleq el er => denote_boolexpr el <-> denote_boolexpr er
+    | be_ordeq _ i j => nat_of_ord i = nat_of_ord j
+    | be_polyeq _ x y => x = y
   end.
 
 Definition denote_booleq (el er : boolexpr) : Prop :=
@@ -124,14 +130,18 @@ elim: e => /=;
   try by repeat (elim/Bool.reflect_rect || move=> ?); constructor; tauto.
 - case; constructor => /=; lia.
 - exact: @leP.
+- by move=> n i j; apply/(iffP eqP) => [| /ord_inj] ->.
 - exact: @eqP.
 Qed.
 
 Lemma booleqP (el er : boolexpr) :
-  (eval_boolexpr el = eval_boolexpr er) <-> denote_booleq el er.
+  eval_boolexpr el = eval_boolexpr er <-> denote_booleq el er.
 Proof.
 do 2 case: boolexprP; move=> H H0; split; case: el H H0; case: er => //=; tauto.
 Qed.
+
+Lemma ordP (n : nat) (i j : 'I_n) : i = j <-> nat_of_ord i = nat_of_ord j.
+Proof. by split=> [| /ord_inj] ->. Qed.
 
 Lemma maxE (m n : nat) : maxn m n = max m n.
 Proof. rewrite/maxn; case: leqP => /leP; lia. Qed.
@@ -158,26 +168,45 @@ Ltac reify_boolexpr e :=
     | ~~ ?e =>
       let e' := reify_boolexpr e in uconstr: (be_neg e')
     | ?n <= ?m => uconstr: (be_leqn n m)
-    | @eq_op ?T ?x ?y => uconstr: (@be_eq T x y)
-    | _ => uconstr: (be_atom e)
+    | _ =>
+      match e with
+        | @eq_op ?T ?el ?er (* bool *) =>
+          let _ := constr: (erefl T : T = bool_eqType) in
+          let el' := reify_boolexpr el in
+          let er' := reify_boolexpr er in
+          uconstr: (be_booleq el' er')
+        | @eq_op ?T ?i ?j (* ordinal *) =>
+          let _ := constr: (erefl T : T = ordinal_eqType _) in
+          uconstr: (@be_ordeq _ i j)
+        | @eq_op ?T ?x ?y => uconstr: (@be_polyeq T x y)
+        | _ => uconstr: (be_atom e)
+      end
   end.
 
-Ltac bool2Prop :=
-  unfold is_true in *;
-  repeat
+Definition beq := @eq bool.
+
+Ltac Propify :=
+  unfold is_true, beq in *;
+  repeat progress
     match goal with
       | H : context [@eq bool ?bl ?br] |- _ =>
         let el := reify_boolexpr bl in
         let er := reify_boolexpr br in
-        change (bl = br) with (eval_boolexpr el = eval_boolexpr er) in H;
-        setoid_rewrite booleqP in H
+        (setoid_rewrite (booleqP el er) in H) ||
+        (let H' := fresh in
+         have H' := H;
+         change (@eq bool) with beq in H;
+         setoid_rewrite (booleqP el er) in H')
       | |- context [@eq bool ?bl ?br] =>
         let el := reify_boolexpr bl in
         let er := reify_boolexpr br in
-        change (bl = br) with (eval_boolexpr el = eval_boolexpr er);
-        setoid_rewrite booleqP
+        setoid_rewrite (booleqP el er)
+      | H : context [@eq ('I_ _) ?i ?j] |- _ =>
+        setoid_rewrite ordP in H
+      | |- context [@eq ('I_ _) ?i ?j] =>
+        setoid_rewrite ordP
     end;
-  cbv [denote_booleq denote_boolexpr Equality.sort nat_eqType] in *.
+  cbv [denote_booleq denote_boolexpr] in *.
 
 Ltac natop_ssr2coq :=
   unfold predn', subn' in *;
@@ -190,7 +219,8 @@ Ltac natop_ssr2coq :=
            | H : context [minn _ _] |- _ => rewrite ?(maxE, minE) in H
          end.
 
-Ltac ssromega := move=> *; simpl in *; natop_ssr2coq; bool2Prop; lia.
+Ltac ssromega :=
+  move=> *; simpl in *; Propify; simpl in *; natop_ssr2coq; lia.
 
 End ssromega.
 
