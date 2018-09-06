@@ -16,14 +16,13 @@ Definition up_search (i j : 'I_#|I|.+1) :
     (fun (i : 'I_#|I|.+1) rec (H : i <= j) =>
        match i < j as cij return (i < j) = cij -> _ with
          | true => fun H' : i < j =>
-           x <- astate_GET (ltnidx_l H');
+           mlet x := astate_GET (ltnidx_l H') in
            if f x
            then astate_ret (exist (fun k : 'I_ _ => i <= k <= j) i
                   ltac:(by rewrite /= leqnn H))
-           else k <- rec (ltnidx_ls H') (leqnn _) H';
-                let: (exist k Hk) := k in
+           else mlet '(exist k Hk) := rec (ltnidx_ls H') (leqnn _) H' in
                 astate_ret (exist (fun k : 'I_ _ => i <= k <= j) k
-                  ltac:(by case/andP: Hk => /ltnW -> ->))
+                  ltac:(by case/andP: Hk => /ltnW ->))
          | false => fun _ =>
            astate_ret (exist (fun k : 'I_ _ => i <= k <= j) j
              ltac:(by rewrite /= leqnn H))
@@ -45,11 +44,10 @@ elim/Acc_rect: i / (well_founded_ordgt i) (well_founded_ordgt i) Hij
   => i _ IH Hi Hij; rewrite -Fix_F_eq /=.
 case: {2 3}(i < j) (erefl (i < j)) => H; rewrite !run_AStateE;
   first case: ifP => H0; rewrite ?run_AStateE.
-- constructor; last ssromega.
-  move=> k' H1 H2; congr (f (arr (_ _))): H0; ssromega.
+- constructor=> [k' H1 H2 |]; first congr (f (arr (_ _))): H0; ssromega.
 - case: {IH Hi} (IH (ltnidx_ls H)) => //= k /andP [] H1 H2 H3 H4;
     rewrite !run_AStateE; constructor=> // i';
-    rewrite leq_eqVlt andb_orl => /orP []; auto=> /andP [] /eqP Hii' _;
+    rewrite leq_eqVlt andb_orl => /orP [] H5; auto;
     congr (~~ (f (arr (_ _)))): (negbT H0); ssromega.
 - constructor; ssromega.
 Qed.
@@ -62,14 +60,14 @@ Definition down_search (i j : 'I_#|I|.+1) :
     (fun (i : 'I_#|I|.+1) rec (H : j <= i) =>
        (if j < i as cij return (j < i) = cij -> _
         then fun H' : j < i =>
-               x <- astate_GET (ltnidx_rp (ltnm0m H'));
+               mlet x := astate_GET (ltnidx_rp (ltnm0m H')) in
                if f x
                then astate_ret (exist (fun k : 'I_ _ => j <= k <= i) i
                                       ltac:(by rewrite /= H leqnn))
-               else k <- rec (ord_pred' (i := i) (ltnm0m H'))
-                             ltac:(by move/ltn_predK: (H') => ->)
-                             ltac:(by simpl; case: (nat_of_ord i) H');
-                    let: (exist k Hk) := k in
+               else mlet '(exist k Hk) :=
+                      rec (ord_pred' (i := i) (ltnm0m H'))
+                          ltac:(by move/ltn_predK: (H') => ->)
+                          ltac:(by case: (i) H' => -[]) in
                     astate_ret (exist (fun k : 'I_ _ => j <= k <= i) k
                       ltac:(by case/andP: Hk => -> /leq_trans;
                             apply; apply/leq_pred))
@@ -94,13 +92,11 @@ elim/Acc_rect: i / (well_founded_ordlt i) (well_founded_ordlt i) Hij
   => i _ IH Hi Hji; rewrite -Fix_F_eq /=.
 case: {2 3}(j < i) (erefl (j < i)) => H; rewrite !run_AStateE;
   first case: ifP => [| /negbT] H0; rewrite ?run_AStateE.
-- constructor; try ssromega; move=> k' H1 H2;
-    congr (f (arr (_ _))): H0; ssromega.
-- case: {IH} (IH (ord_pred' (ltnm0m H))); first ssromega.
-  move=> k Hk H1 H2; rewrite !run_AStateE; constructor => // i' /andP [] H3.
-  rewrite -(ltn_predK H) ltnS leq_eqVlt => /orP [/eqP |] H4.
-  + by congr (~~ (f (arr (_ _)))): H0; ssromega.
-  + by apply H2; rewrite H3.
+- constructor=> [k' H1 H2 |]; first congr (f (arr (_ _))): H0; ssromega.
+- case: {IH} (IH (ord_pred' (ltnm0m H))) => [| k Hk H1 H2]; first ssromega.
+  rewrite !run_AStateE; constructor=> // i' /andP [] H3.
+  rewrite leq_eqVlt => /orP [] H4;
+    [ congr (~~ (f (arr (_ _)))): H0 | apply H2 ]; ssromega.
 - constructor; ssromega.
 Qed.
 
@@ -124,24 +120,21 @@ Definition partition (pivot : A) :
     (fun i => forall j : 'I_#|I|.+1,
          i <= j -> AState {ffun I -> A} {k : 'I_#|I|.+1 | i <= k <= j})
     (fun (i : 'I_#|I|.+1) rec (j : 'I_#|I|.+1) (Hij : i <= j) =>
-       i' <- up_search (cmp pivot) (i := i) (j := j) Hij;
-       j' <- down_search (xpredC (cmp pivot)) (i := j) (j := i) Hij;
-       let: (exist i' Hi) := i' in
-       let: (exist j' Hj) := j' in
+       mlet '(exist i' Hi) := up_search (cmp pivot) (i := i) (j := j) Hij in
+       mlet '(exist j' Hj) :=
+         down_search (xpredC (cmp pivot)) (i := j) (j := i) Hij in
        match i'.+1 < j' as cij return i'.+1 < j' = cij -> _ with
          | true => fun Hij : i'.+1 < j' =>
            SWAP (ltnidx_l (ltnW Hij)) (ltnidx_rp (ltnm0m Hij));;
-           k <- rec
-             (ltnidx_ls (ltnW Hij))
-             ltac: (by case/andP: Hi; rewrite ltnS)
-             (ord_pred' (i := j') (ltnm0m Hij))
-             ltac: (by case: j' Hij {Hj} => -[]);
-           let: (exist k Hk) := k in
+           mlet '(exist k Hk) :=
+             rec (ltnidx_ls (ltnW Hij))
+                 ltac: (by case/andP: Hi; rewrite ltnS)
+                 (ord_pred' (i := j') (ltnm0m Hij))
+                 ltac: (by case: (j') Hij => -[]) in
            astate_ret (exist (fun k : 'I_ _ => i <= k <= j) k
-             ltac:(by move: Hi Hj Hk
-                     => /andP [Hi _] /andP [_ Hj] /andP [Hkl Hkr];
+             ltac:(move: Hi Hj Hk => /andP [Hi _] /andP [_ Hj] /andP [Hkl Hkr];
                    rewrite (leq_trans Hi (ltnW Hkl)) (leq_trans Hkr) //
-                           (leq_trans (leq_pred _))))
+                           (leq_trans (leq_pred _)) //))
          | false => fun _ =>
            astate_ret (exist (fun k : 'I_ _ => i <= k <= j) i' Hi)
        end (erefl (i'.+1 < j'))).
@@ -207,12 +200,12 @@ Definition quicksort_rec :
           | true => fun Hij : i.+1 < j =>
             let i' := ltnidx_l (ltnW Hij) in
             let si := ltnidx_ls (ltnW Hij) in
-            pivot <- astate_GET i';
-            k <- @partition pivot si j (ltnW Hij);
-            let: (exist k Hk) := k in
+            mlet pivot := astate_GET i' in
+            mlet '(exist k Hk) := @partition pivot si j (ltnW Hij) in
             let Hk' : 0 < k := ltac:(by case/andP: Hk => /ltnm0m) in
             let pk := ltnidx_rp (j := k) Hk' in
-            x <- astate_GET pk; astate_SET i' x;; astate_SET pk pivot;;
+            mlet x := astate_GET pk in
+            astate_SET i' x;; astate_SET pk pivot;;
             recr (ord_pred' (i := k) Hk')
                  ltac:(by case/andP: (Hk); rewrite /= (ltn_predK Hk'));;
             recl k ltac:(by case/andP: (Hk)) j
@@ -241,7 +234,7 @@ Lemma QuicksortRecSpec_
     cmp (arr' (fin_decode ix)) (arr' (fin_decode ix'))) ->
   quicksort_rec_spec i j arr (tt, arr').
 Proof.
-by simpl=> H H'; constructor => // ix ix' ?;
+by simpl=> H H'; constructor=> // ix ix' ?;
   rewrite leq_eqVlt => /predU1P [/ord_inj <- | ?] ?;
   [ apply Hcmp_refl | apply H' ].
 Qed.
@@ -327,7 +320,7 @@ Proof.
 rewrite /quicksort.
 set j := Ordinal _.
 have ->: j = ord_max by apply/ord_inj => /=; rewrite cardT'.
-by case: run_quicksort_rec => p /= Hp Hsort; constructor => *; apply: Hsort.
+by case: run_quicksort_rec => p /= Hp Hsort; constructor=> *; apply: Hsort.
 Qed.
 
 Definition quicksort_ (arr : {ffun I -> A}) : {ffun I -> A} :=

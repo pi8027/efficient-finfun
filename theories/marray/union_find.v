@@ -472,11 +472,11 @@ Variable (g : G) (Hg : acycle g).
 
 Fixpoint mfind_rec n x : AState {ffun T -> T + R} (T * R) :=
   if n is n'.+1
-  then x' <- astate_get x;
+  then mlet x' := astate_get x in
        match x' with
          | inl x'' =>
-           r <- mfind_rec n' x'';
-           astate_set x (inl r.1);;
+           mlet '((rep, _) as r) := mfind_rec n' x'' in
+           astate_set x (inl rep);;
            astate_ret r
          | inr a => astate_ret (x, a)
        end
@@ -533,14 +533,12 @@ Definition union x y :=
     else ffun_set x' (inr v) (ffun_set y' (inl x') g').
 
 Definition munion x y : AState {ffun T -> T + R} unit :=
-  x' <- mfind x;
-  y' <- mfind y;
-  if x'.1 == y'.1 then astate_ret tt else
-  if cmp x'.2 y'.2
-    then astate_set x'.1 (inl y'.1);;
-         astate_set y'.1 (inr (Rop x'.2 y'.2))
-    else astate_set y'.1 (inl x'.1);;
-         astate_set x'.1 (inr (Rop x'.2 y'.2)).
+  mlet '(xr, xv) := mfind x in
+  mlet '(yr, yv) := mfind y in
+  if xr == yr then astate_ret tt else
+  if cmp xv yv
+    then astate_set xr (inl yr);; astate_set yr (inr (Rop xv yv))
+    else astate_set yr (inl xr);; astate_set xr (inr (Rop xv yv)).
 
 Lemma run_munion x y : run_AState (munion x y) g = (tt, union x y).
 Proof.

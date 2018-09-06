@@ -219,9 +219,12 @@ Definition run_AStateE :=
    ((run_AStateE_frameL, run_AStateE_frameR),
     (run_AStateE_GET, run_AStateE_SET))).
 
-Notation "x <- y ; f" :=
+Notation "'mlet' x := y 'in' f" :=
   (astate_bind y (fun x => f))
-  (at level 65, right associativity).
+  (x ident, at level 65, right associativity).
+Notation "'mlet' ' x := y 'in' f" :=
+  (astate_bind y (fun x => f))
+  (x pattern, at level 65, right associativity).
 Notation "y ;; f" :=
   (astate_bind y (fun _ => f))
   (at level 65, right associativity).
@@ -234,11 +237,11 @@ Notation "x =m y" :=
   (run_AState x =1 run_AState y) (at level 70, no associativity).
 
 Lemma left_id (S : copyType) A B (a : A) (f : A -> AState S B) :
-  a' <- astate_ret a; f a'  =m  f a.
+  mlet a' := astate_ret a in f a'  =m  f a.
 Proof. by move=> s; rewrite !run_AStateE. Qed.
 
 Lemma right_id (S : copyType) A (a : AState S A) :
-  a' <- a; astate_ret a'  =m  a.
+  mlet a' := a in astate_ret a'  =m  a.
 Proof.
 by move=> s; rewrite !run_AStateE;
   case: (run_AState _ _) => [x s']; rewrite !run_AStateE.
@@ -247,7 +250,8 @@ Qed.
 Lemma assoc
       (S : copyType) A B C
       (a : AState S A) (f : A -> AState S B) (g : B -> AState S C) :
-  a' <- a; b <- f a'; g b  =m  b <- (a' <- a; f a'); g b.
+  mlet a' := a in mlet b := f a' in g b  =m
+  mlet b := mlet a' := a in f a' in g b.
 Proof.
 by move=> s; rewrite !run_AStateE;
   case: (run_AState _ _) => [x s']; rewrite !run_AStateE.
@@ -255,8 +259,8 @@ Qed.
 
 Lemma frameL_distr
       (Sl Sr : copyType) A B (a : AState Sl A) (f : A -> AState Sl B) :
-  astate_frameL (Sr := Sr) (a' <- a; f a') =m
-  a' <- astate_frameL a; astate_frameL (f a').
+  astate_frameL (Sr := Sr) (mlet a' := a in f a') =m
+  mlet a' := astate_frameL a in astate_frameL (f a').
 Proof.
 case=> sl sr; rewrite !run_AStateE.
 by case: (run_AState a sl) => x sl'; rewrite !run_AStateE.
@@ -264,8 +268,8 @@ Qed.
 
 Lemma frameR_distr
       (Sl Sr : copyType) A B (a : AState Sr A) (f : A -> AState Sr B) :
-  astate_frameR (Sl := Sl) (a' <- a; f a') =m
-  a' <- astate_frameR a; astate_frameR (f a').
+  astate_frameR (Sl := Sl) (mlet a' := a in f a') =m
+  mlet a' := astate_frameR a in astate_frameR (f a').
 Proof.
 case=> sl sr; rewrite !run_AStateE.
 by case: (run_AState a sr) => x sr'; rewrite !run_AStateE.
@@ -278,8 +282,8 @@ Proof. by move=> s; rewrite !run_AStateE. Qed.
 Lemma frame_assoc
       (Sl Sr : copyType) A B C
       (a : AState Sl A) (b : AState Sr B) (f : A -> B -> AState (Sl * Sr) C) :
-  x <- astate_frameL a; y <- astate_frameR b; f x y =m
-  y <- astate_frameR b; x <- astate_frameL a; f x y.
+  mlet x := astate_frameL a in mlet y := astate_frameR b in f x y =m
+  mlet y := astate_frameR b in mlet x := astate_frameL a in f x y.
 Proof with rewrite !run_AStateE.
 case=> sl sr...
 case: {1 3}(run_AState a _) (erefl (run_AState a sl)) => x sl'...
@@ -287,12 +291,13 @@ by case: (run_AState b _) => y sr'; rewrite !run_AStateE => <-.
 Qed.
 
 Lemma get_set_s (I : finType) T (i : 'I_#|I|) :
-  x <- astate_GET (T := T) i; astate_SET i x  =m  astate_ret tt.
+  mlet x := astate_GET (T := T) i in astate_SET i x  =m  astate_ret tt.
 Proof. by move=> s; rewrite !run_AStateE subst_id. Qed.
 
 Lemma get_get_s
       (I : finType) T A (i : 'I_#|I|) (f : T -> T -> AState {ffun I -> T} A) :
-  x <- astate_GET i; y <- astate_GET i; f x y  =m  x <- astate_GET i; f x x.
+  mlet x := astate_GET i in mlet y := astate_GET i in f x y  =m
+  mlet x := astate_GET i in f x x.
 Proof. by move=> s; rewrite !run_AStateE. Qed.
 
 Lemma set_set_s (I : finType) T (i : 'I_#|I|) (x y : T) :
@@ -308,8 +313,8 @@ Proof. by move=> s; rewrite !run_AStateE ffunE eqxx. Qed.
 
 Lemma get_get_d
       (I : finType) T A (i j : 'I_#|I|) (f : T -> T -> AState {ffun I -> T} A) :
-  x <- astate_GET i; y <- astate_GET j; f x y =m
-  y <- astate_GET j; x <- astate_GET i; f x y.
+  mlet x := astate_GET i in mlet y := astate_GET j in f x y =m
+  mlet y := astate_GET j in mlet x := astate_GET i in f x y.
 Proof. by move=> s; rewrite !run_AStateE. Qed.
 
 Lemma set_set_d (I : finType) T (i j : 'I_#|I|) (x y : T) :
@@ -324,7 +329,7 @@ Qed.
 Lemma set_get_d (I : finType) T (i j : 'I_#|I|) (x : T) :
   i != j ->
   astate_SET i x;; astate_GET j =m
-  y <- astate_GET j; astate_SET i x;; astate_ret y.
+  mlet y := astate_GET j in astate_SET i x;; astate_ret y.
 Proof.
 by move=> H s; rewrite !run_AStateE; congr (_, _);
   rewrite !ffunE (can_eq (@fin_decodeK _)) eq_sym (negbTE H).
@@ -472,7 +477,9 @@ Global Opaque swap.
 
 Definition SWAP (I : finType) {A : Type} (i j : 'I_#|I|) :
   AState {ffun I -> A} unit :=
-  x <- astate_GET i; y <- astate_GET j; astate_SET i y;; astate_SET j x.
+  mlet x := astate_GET i in
+  mlet y := astate_GET j in
+  astate_SET i y;; astate_SET j x.
 
 Lemma run_SWAP (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
   run_AState (SWAP i j) f =
@@ -484,7 +491,9 @@ Qed.
 
 Definition swap (I : finType) {A : Type} (i j : I) :
   AState {ffun I -> A} unit :=
-  x <- astate_get i; y <- astate_get j; astate_set i y;; astate_set j x.
+  mlet x := astate_get i in
+  mlet y := astate_get j in
+  astate_set i y;; astate_set j x.
 
 Lemma run_swap (I : finType) (A : Type) (i j : I) (f : {ffun I -> A}) :
   run_AState (swap i j) f = (tt, [ffun k => f (tperm i j k)]).
