@@ -168,7 +168,6 @@ End Floyd_Warshall.
 
 (*
 Require Import extraction_ocaml.
-Unset Extraction SafeImplicits.
 Set Extraction Flag 8175.
 
 Extraction Inline

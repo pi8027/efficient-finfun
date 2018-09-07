@@ -174,6 +174,7 @@ Extract Inductive
                 ["Array.of_list"]
                 "(fun f t -> f (Array.to_list t))".
 
+Extraction Implicit tnth_default [n].
 Extraction Implicit tnth [n].
 Extract Constant tnth => "Array.get".
 

@@ -595,7 +595,6 @@ End WUF.
 
 (*
 Require Import extraction_ocaml.
-Unset Extraction SafeImplicits.
 
 Extraction Inline
   mfind_rec mfind munion WUF.R WUF.Ridx WUF.Rop WUF.cmp

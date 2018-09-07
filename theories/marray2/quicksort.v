@@ -365,7 +365,6 @@ End Quicksort.
 
 (*
 Require Import extraction_ocaml.
-Unset Extraction SafeImplicits.
 
 Extraction Implicit Quicksort.partition_rec [I].
 Extraction Implicit Quicksort.partition [I].

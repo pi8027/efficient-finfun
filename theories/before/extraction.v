@@ -45,7 +45,6 @@ Definition finfun_app_test (n : nat) :=
 
 (******************************************************************************)
 
-Unset Extraction SafeImplicits.
 Extraction Language Ocaml.
 Set Extraction Flag 2031.
 
