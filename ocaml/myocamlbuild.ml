@@ -13,8 +13,8 @@ dispatch begin function
       flag ["ocaml";"compile";"dlambda"] (S [A "-dlambda"]);
       flag ["ocaml";"compile";"native";"dflambda"] (S [A "-dflambda"]);
       flag ["ocaml";"compile";"native";"drawflambda"] (S [A "-drawflambda"]);
-      flag ["ocaml";"compile";"native";"dflambda-no-invariants"] (S [A "-dflambda-no-invariants"]);
-      flag ["ocaml";"compile";"native";"dflambda-verbose"] (S [A "-dflambda-verbose"]);
+      flag ["ocaml";"compile";"native";"dflambda_no_invariants"] (S [A "-dflambda-no-invariants"]);
+      flag ["ocaml";"compile";"native";"dflambda_verbose"] (S [A "-dflambda-verbose"]);
     end
   | _ -> ()
 end

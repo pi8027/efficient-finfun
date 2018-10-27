@@ -70,6 +70,8 @@ end
 
 #### Benchmarks
 
+eval `opam config env --switch=4.07.0+flambda+no-flat-float-array`
+
 pushd ocaml
 
   for f in before after; do
@@ -92,11 +94,12 @@ pushd ocaml
     ocamlbuild -build-dir _$f -no-hygiene -package unix \
       ${f}_main.native \
       -tag 'optimize(3)' \
-      -tag 'optimization_rounds(8)' \
+      -tag 'optimization_rounds(10)' \
       -tag 'remove_unused_arguments' \
       -tag 'unbox_closures' \
       -tag 'inlining_report' \
-      #-tag 'dflambda-verbose'
+      #-tag 'asm' \
+      #-tag 'dflambda'
   done
 
 popd # ocaml
