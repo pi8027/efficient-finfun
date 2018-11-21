@@ -33,7 +33,7 @@ Extraction Implicit ffun_copy [I].
 Extract Inlined Constant ffun_copy => "Array.copy".
 
 Extraction Inline
-  CopyableRaw.copy CopyableRaw.ffun_mixin CopyableRaw.prod_mixin
+  CopyableMixin.copy CopyableMixin.ffun_mixin CopyableMixin.prod_mixin
   Copyable.class Copyable.pack Copyable.clone
   copy finfun_copyType prod_copyType.
 

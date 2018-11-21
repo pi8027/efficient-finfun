@@ -13,7 +13,7 @@ Unset Printing Implicit Defensive.
 Definition ffun_copy
            (I : finType) (T : Type) (f : {ffun I -> T}) : {ffun I -> T} := f.
 
-Module Type CopyableRawSig.
+Module Type CopyableMixinSig.
 
 Parameters
   (mixin_of : Type -> Type)
@@ -24,9 +24,9 @@ Parameters
      forall (T1 T2 : Type) (C1 : mixin_of T1) (C2 : mixin_of T2),
        mixin_of (T1 * T2)).
 
-End CopyableRawSig.
+End CopyableMixinSig.
 
-Module CopyableRaw : CopyableRawSig.
+Module CopyableMixin : CopyableMixinSig.
 
 Record mixin_of_ (T : Type) : Type :=
   Mixin { copy_ : T -> T; copyE_ : forall x, copy_ x = x }.
@@ -50,17 +50,17 @@ Definition prod_mixin (T1 T2 : Type) (C1 : mixin_of T1) (C2 : mixin_of T2) :
   @Mixin (T1 * T2) (fun '(x, y) => (copy C1 x, copy C2 y))
          (prod_mixin_subproof C1 C2).
 
-End CopyableRaw.
+End CopyableMixin.
 
 Module Copyable.
 
-Structure type : Type := Pack {sort; _ : CopyableRaw.mixin_of sort }.
+Structure type : Type := Pack {sort; _ : CopyableMixin.mixin_of sort }.
 
 Section ClassDef.
 Variable (T : Type) (cT : type).
 
 Definition class :=
-  let: Pack _ c := cT return CopyableRaw.mixin_of (sort cT) in c.
+  let: Pack _ c := cT return CopyableMixin.mixin_of (sort cT) in c.
 Definition pack c := @Pack T c.
 Definition clone := fun c & sort cT -> T & phant_id (pack c) cT => pack c.
 
@@ -70,7 +70,7 @@ Module Exports.
 Coercion sort : type >-> Sortclass.
 Notation copyType := type.
 Notation "[ 'copyMixin' 'of' T ]" :=
-  (class _ : CopyableRaw.mixin_of T)
+  (class _ : CopyableMixin.mixin_of T)
     (at level 0, format "[ 'copyMixin' 'of' T ]") : form_scope.
 Notation "[ 'copyType' 'of' T ]" :=
   (@clone T _ _ idfun id).
@@ -81,17 +81,20 @@ End Copyable.
 Export Copyable.Exports.
 
 Definition copy (T : copyType) : T -> T :=
-  CopyableRaw.copy (Copyable.class T).
+  CopyableMixin.copy (Copyable.class T).
 
 Lemma copyE (T : copyType) (x : T) : copy x = x.
-Proof. by rewrite /copy; case: T x => /= T m x; rewrite CopyableRaw.copyE. Qed.
+Proof.
+by rewrite /copy; case: T x => /= T m x; rewrite CopyableMixin.copyE.
+Qed.
 
 Canonical finfun_copyType (I : finType) (T : Type) : copyType :=
-  @Copyable.Pack {ffun I -> T} (CopyableRaw.ffun_mixin I T).
+  @Copyable.Pack {ffun I -> T} (CopyableMixin.ffun_mixin I T).
 
 Canonical prod_copyType (T1 T2 : copyType) : copyType :=
   @Copyable.Pack
-    (T1 * T2) (CopyableRaw.prod_mixin (Copyable.class T1) (Copyable.class T2)).
+    (T1 * T2)
+    (CopyableMixin.prod_mixin (Copyable.class T1) (Copyable.class T2)).
 
 (* Array state monad *)
 
