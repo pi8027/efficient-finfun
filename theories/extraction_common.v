@@ -10,8 +10,10 @@ Extract Inductive bool => "bool" ["true" "false"].
 
 Extract Inductive reflect => "bool" ["true" "false"].
 
+(*
 Extract Inlined Constant negb => "not".
 Extract Inlined Constant eqb => "((=) : bool -> bool -> bool)".
+*)
 
 Extraction Inline iffP idP.
 
@@ -185,11 +187,8 @@ Extract Constant map_tuple => "Array.map".
 
 Extract Constant mktuple => "Array.init".
 
-Extraction Implicit tcast [m n].
-Extract Inlined Constant tcast => "(* tcast *)".
-
 Extraction Inline
-  tuple tval fun_of_fin finfun fgraph finfun_of_set
+  tuple tval tcast fun_of_fin finfun fgraph finfun_of_set
   SetDef.finset SetDef.pred_of_set SetDef.finsetE SetDef.pred_of_setE.
 
 (* algebra *)
