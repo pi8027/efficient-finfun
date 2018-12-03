@@ -323,14 +323,14 @@ Require Import extraction_ocaml.
 Extraction Implicit Quicksort.partition [I].
 Extraction Implicit Quicksort.quicksort_rec [I].
 
-Extraction Inline up_search down_search Quicksort.quicksort.
+Extraction Inline negb up_search down_search Quicksort.quicksort.
 
+Set Extraction Flag 2031.
 Extract Type Arity AState 0.
 
 Extraction "../../ocaml/quicksort_o0.ml" nat_eqType ordinal_finType Quicksort.
 
 Set Extraction Flag 8175.
-
 Extract Type Arity AState 1.
 
 Extraction "../../ocaml/quicksort.ml" nat_eqType ordinal_finType Quicksort.
