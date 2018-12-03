@@ -342,20 +342,38 @@ End equational_theory.
 
 (* Iteration *)
 
+Lemma rev_enum_ord n : rev (enum 'I_n) = [seq rev_ord i | i <- enum 'I_n].
+Proof.
+apply/(inj_map val_inj).
+move: (map_comp (fun x => n - x.+1) val (enum 'I_n)) (val_enum_ord n).
+rewrite -(map_comp val (@rev_ord _)) !/comp /= map_rev => -> ->.
+rewrite -{2}(subnn n); elim: {1 3 6 7}n (leqnn n) => // i IH H.
+by rewrite -{1}(addn1 i) iota_add add0n /=
+           rev_cat /= subnSK // -IH ?subKn // ltnW.
+Qed.
+
+Lemma foldl_map
+      (T T' R : Type) (f : R -> T' -> R) (g : T -> T') (z : R) (s : seq T) :
+  foldl f z (map g s) = foldl (fun z x => f z (g x)) z s.
+Proof. by elim: s z; simpl. Qed.
+
 Section Iteration_ordinal.
 
 Variable (n : nat) (A : Type).
 
-Fixpoint iterate_revord
-         (i : nat) (f : 'I_n -> A -> A) (x : A) : i <= n -> A :=
+Section iterate_revord.
+
+Variable (f : 'I_n -> A -> A).
+
+Fixpoint iterate_revord (i : nat) (x : A) : i <= n -> A :=
   match i with
     | 0 => fun _ => x
     | i'.+1 => fun (H : i' < n) =>
-                 iterate_revord (i := i') f (f (Ordinal H) x) (ltnW H)
+                 iterate_revord (i := i') (f (Ordinal H) x) (ltnW H)
   end.
 
-Lemma iterate_revord_eq (f : 'I_n -> A -> A) (x : A) :
-  iterate_revord f x (leqnn n) = foldr f x (enum 'I_n).
+Lemma iterate_revord_eq (x : A) :
+  iterate_revord x (leqnn n) = foldr f x (enum 'I_n).
 Proof.
 move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
 move: (rev _) (leqnn _) => /= xs;
@@ -365,14 +383,42 @@ have <-: i' = Ordinal H by apply val_inj.
 by rewrite rev_cons -cats1 foldr_cat /= -(IH (ltnW H)).
 Qed.
 
-Fixpoint miterate_revord
-         (S : Type) (i : nat) (g : 'I_n -> A -> AState S A) (x : A) :
-  i <= n -> AState S A :=
+End iterate_revord.
+
+(*
+Fixpoint miterate_revord (S : Type) (g : 'I_n -> A -> AState S A)
+                         (i : nat) (x : A) : i <= n -> AState S A :=
   match i with
     | 0 => fun _ => astate_ret x
     | i'.+1 =>
       fun (H : i' < n) =>
-        astate_bind (g (Ordinal H) x) (fun y => miterate_revord g y (ltnW H))
+        mlet y := g (Ordinal H) x in
+        @miterate_revord _ g i' y (ltnW H)
+  end.
+
+Lemma run_miterate_revord
+      (S : copyType) (g : 'I_n -> A -> AState S A) (x : A) (s : S) :
+  run_AState (miterate_revord g x (leqnn n)) s =
+  foldr (fun i '(x, s) => run_AState (g i x) s) (x, s) (enum 'I_n).
+Proof.
+move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
+move: (rev _) (leqnn _) => /= xs;
+  move: {1 5 6}n => i Hi; elim: i Hi x xs s => [| i IH] H x;
+  first by case=> //= s _; rewrite run_AStateE.
+rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
+have <-: i' = Ordinal H by apply val_inj.
+by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
+  case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).
+Qed.
+*)
+
+Definition miterate_revord (S : Type) (g : 'I_n -> A -> AState S A) :=
+  fix rec (i : nat) (x : A) : i <= n -> AState S A :=
+  match i with
+    | 0 => fun _ => astate_ret x
+    | i'.+1 =>
+      fun (H : i' < n) =>
+        astate_bind (g (Ordinal H) x) (fun y => rec i' y (ltnW H))
   end.
 
 Lemma run_miterate_revord
@@ -390,17 +436,43 @@ by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
   case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).
 Qed.
 
-End Iteration_ordinal.
+Definition miterate_ord
+           (S : Type) (g : 'I_n -> A -> AState S A) (x : A) :=
+  miterate_revord (fun i => g (rev_ord i)) x (leqnn n).
 
-Lemma rev_enum_ord n : rev (enum 'I_n) = [seq rev_ord i | i <- enum 'I_n].
+Lemma run_miterate_ord
+      (S : copyType) (g : 'I_n -> A -> AState S A) (x : A) (s : S) :
+  run_AState (miterate_ord g x) s =
+  foldl (fun '(x, s) i => run_AState (g i x) s) (x, s) (enum 'I_n).
 Proof.
-apply/(inj_map val_inj).
-move: (map_comp (fun x => n - x.+1) val (enum 'I_n)) (val_enum_ord n).
-rewrite -(map_comp val (@rev_ord _)) !/comp /= map_rev => -> ->.
-rewrite -{2}(subnn n); elim: {1 3 6 7}n (leqnn n) => // i IH H.
-by rewrite -{1}(addn1 i) iota_add add0n /=
-           rev_cat /= subnSK // -IH ?subKn // ltnW.
+rewrite run_miterate_revord -{2}(revK (enum _))
+        foldl_rev rev_enum_ord foldr_map.
+by elim: (enum _) => //= i xs ->; case: (foldr _ _ _).
 Qed.
+
+Definition miterate_revord' (S : Type) (g : 'I_n -> AState S unit) :=
+  fix rec (i : nat) : i <= n -> AState S unit :=
+  match i with
+    | 0 => fun _ => astate_ret tt
+    | i'.+1 => fun H : i' < n => g (Ordinal H);; rec i' (ltnW H)
+  end.
+
+Lemma run_miterate_revord'
+      (S : copyType) (g : 'I_n -> AState S unit) (s : S) :
+  run_AState (miterate_revord' g (leqnn n)) s =
+  (tt, foldr (fun i s => (run_AState (g i) s).2) s (enum 'I_n)).
+Proof.
+move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
+move: (rev _) (leqnn _) => /= xs;
+  move: {1 5 6}n => i Hi; elim: i Hi xs s => [| i IH] H;
+  first by case=> //= s _; rewrite run_AStateE.
+rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
+have <-: i' = Ordinal H by apply val_inj.
+by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
+  case: (run_AState (g i') s) => s' y; rewrite -(IH (ltnW H)).
+Qed.
+
+End Iteration_ordinal.
 
 Section Iteration_finType.
 
@@ -423,34 +495,87 @@ Lemma iterate_revfin_eq (f : T -> A -> A) (x : A) :
   iterate_revfin f x = foldr f x (enum T).
 Proof.
 by rewrite /iterate_revfin iterate_revord_eq
-           enumT unlock ord_enumE [X in _ = X]foldr_map.
+           enumT unlock ord_enumE [RHS]foldr_map.
+Qed.
+
+Definition miterate_both
+           (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
+  AState S A :=
+  miterate_ord (fun i => g (cast_ord (esym (cardT' _)) i) (raw_fin_decode i)) x.
+
+(*
+Definition miterate_both'
+           (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
+  AState S A :=
+  miterate_revord
+    (fun i => let i' := rev_ord i in
+              g (cast_ord (esym (cardT' _)) i') (raw_fin_decode i'))
+    x (leqnn $|T|).
+
+Goal miterate_both = miterate_both'.
+Proof. reflexivity. Qed.
+*)
+
+Lemma run_miterate_both
+      (S : copyType) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) (s : S) :
+  run_AState (miterate_both g x) s =
+  foldl (fun '(x, s) i => run_AState (g (fin_encode i) i x) s) (x, s) (enum T).
+Proof.
+rewrite run_miterate_ord enumT (unlock finEnum_unlock) ord_enumE
+        [RHS]foldl_map.
+elim: (enum _) {x s} (x, s) => //= o os IH [x s]; rewrite -IH.
+by rewrite (unlock fin_encode_unlock) raw_fin_decodeK.
 Qed.
 
 Definition miterate_fin
            (S : Type) (g : T -> A -> AState S A) (x : A) : AState S A :=
-  miterate_revord (fun i => g (raw_fin_decode (rev_ord i))) x (leqnn $|T|).
+  miterate_both (fun _ i => g i) x.
 
 Lemma run_miterate_fin
       (S : copyType) (g : T -> A -> AState S A) (x : A) (s : S) :
   run_AState (miterate_fin g x) s =
   foldl (fun '(x, s) i => run_AState (g i x) s) (x, s) (enum T).
+Proof. by rewrite run_miterate_both. Qed.
+
+Definition miterate_revboth
+           (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
+  AState S A :=
+  miterate_revord
+    (fun i => g (cast_ord (esym (cardT' _)) i) (raw_fin_decode i))
+    x (leqnn $|T|).
+
+Lemma run_miterate_revboth
+      (S : copyType) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) (s : S) :
+  run_AState (miterate_revboth g x) s =
+  foldr (fun i '(x, s) => run_AState (g (fin_encode i) i x) s) (x, s) (enum T).
 Proof.
-rewrite /miterate_fin run_miterate_revord -(revK (enum T)) enumT unlock
-        ord_enumE foldl_rev -map_rev rev_enum_ord -map_comp foldr_map.
-by elim: (enum _) => //= i xs ->; case: (foldr _ _ _).
+rewrite run_miterate_revord enumT (unlock finEnum_unlock) ord_enumE
+        [RHS]foldr_map.
+by elim: (enum _) => //= o os <-;
+  rewrite (unlock fin_encode_unlock) raw_fin_decodeK.
 Qed.
 
 Definition miterate_revfin
-           (S : copyType) (g : T -> A -> AState S A) (x : A) : AState S A :=
-  miterate_revord (fun i => g (raw_fin_decode i)) x (leqnn $|T|).
+           (S : Type) (g : T -> A -> AState S A) (x : A) : AState S A :=
+  miterate_revboth (fun _ i => g i) x.
 
 Lemma run_miterate_revfin
       (S : copyType) (g : T -> A -> AState S A) (x : A) (s : S) :
   run_AState (miterate_revfin g x) s =
   foldr (fun i '(x, s) => run_AState (g i x) s) (x, s) (enum T).
+Proof. by rewrite run_miterate_revboth. Qed.
+
+Definition miterate_revfin'
+           (S : copyType) (g : T -> AState S unit) : AState S unit :=
+  miterate_revord' (fun i => g (raw_fin_decode i)) (leqnn $|T|).
+
+Lemma run_miterate_revfin'
+      (S : copyType) (g : T -> AState S unit) (s : S) :
+  run_AState (miterate_revfin' g) s =
+  (tt, foldr (fun i s => (run_AState (g i) s).2) s (enum T)).
 Proof.
-by rewrite /miterate_revfin run_miterate_revord enumT unlock ord_enumE
-           [X in _ = X]foldr_map /comp.
+by rewrite run_miterate_revord' enumT unlock ord_enumE
+           [X in _ = (_, X)]foldr_map.
 Qed.
 
 End Iteration_finType.

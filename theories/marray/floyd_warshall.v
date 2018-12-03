@@ -134,22 +134,19 @@ Definition floyd_warshall_succ (g : G) (y : T) : G :=
    if lt_distance xyz (g (x, z)) then xyz else g (x, z)].
 
 Definition m_floyd_warshall : AState {ffun T * T -> option nat} unit :=
-  miterate_revfin (fun i _ => astate_set (i, i) (Some 0)) tt;;
-  miterate_revfin (fun i _ =>
-    miterate_revfin (fun j _ =>
+  miterate_revfin' (fun i => astate_set (i, i) (Some 0));;
+  miterate_revfin' (fun i =>
+    miterate_revfin' (fun j =>
       mlet d_ji := astate_get (j, i) in
       if d_ji isn't Some dji then astate_ret tt else
-      miterate_revfin (fun k _ =>
+      miterate_revfin' (fun k =>
         mlet d_ik := astate_get (i, k) in
         if d_ik isn't Some dik then astate_ret tt else
         mlet d_jk := astate_get (j, k) in
         if d_jk isn't Some djk then astate_set (j, k) (Some (dji + dik))
         else if djk <= dji + dik
              then astate_ret tt
-             else astate_set (j, k) (Some (dji + dik))
-      ) tt
-    ) tt
-  ) tt.
+             else astate_set (j, k) (Some (dji + dik))))).
 
 End Floyd_Warshall.
 

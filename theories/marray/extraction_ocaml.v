@@ -73,4 +73,6 @@ Extraction Inline
   run_AState
   SWAP swap
   iterate_revord iterate_fin iterate_revfin
-  miterate_revord miterate_fin miterate_revfin.
+  miterate_revord miterate_ord miterate_revord'
+  miterate_revboth miterate_both
+  miterate_revfin miterate_fin miterate_revfin'.
