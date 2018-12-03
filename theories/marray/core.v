@@ -580,28 +580,20 @@ Qed.
 
 End Iteration_finType.
 
-Set Printing Width 79.
+(* Swap and permutation utilities *)
 
-(*
-Definition swap (I : finType) {A : Type} (i j : I) :
-  AState {ffun I -> A} unit :=
-  x <- astate_get i; y <- astate_get j; astate_set i y;; astate_set j x.
+Definition perm_ffun
+           (I : finType) (A : Type) (p : {perm I}) (f : {ffun I -> A}) :=
+  [ffun i => f (p i)].
 
-Lemma run_swap (I : finType) (A : Type) (i j : I) (f : {ffun I -> A}) :
-  run_AState (swap i j) f = (tt, [ffun k => f (tperm i j k)]).
-Proof.
-rewrite !run_AStateE.
-congr pair.
-apply/ffunP => k.
-rewrite !ffunE.
-case: tpermP; do!case: eqP; congruence.
-Restart.
-rewrite !run_AStateE; congr pair; apply/ffunP => k.
-rewrite !ffunE; case: tpermP; do!case: eqP; congruence.
-Qed.
+Lemma perm_ffunE1 (I : finType) (A : Type) (f : {ffun I -> A}) :
+  perm_ffun 1%g f = f.
+Proof. by apply/ffunP => i; rewrite !ffunE permE. Qed.
 
-Global Opaque swap.
-*)
+Lemma perm_ffunEM
+      (I : finType) (A : Type) (p p' : {perm I}) (f : {ffun I -> A}) :
+  perm_ffun (p * p') f = perm_ffun p (perm_ffun p' f).
+Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
 
 Definition SWAP (I : finType) {A : Type} (i j : 'I_#|I|) :
   AState {ffun I -> A} unit :=
@@ -611,20 +603,24 @@ Definition SWAP (I : finType) {A : Type} (i j : 'I_#|I|) :
 
 Lemma run_SWAP (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
   run_AState (SWAP i j) f =
-  (tt, [ffun k => f (tperm (fin_decode i) (fin_decode j) k)]).
+  (tt, perm_ffun (tperm (fin_decode i) (fin_decode j)) f).
 Proof.
+rewrite !run_AStateE.
+congr pair.
+apply/ffunP => k.
+rewrite !ffunE.
+rewrite permE /=; do!case: eqP; congruence.
+Restart.
 rewrite !run_AStateE; congr pair; apply/ffunP => k.
-rewrite !ffunE; case: tpermP; do !case: eqP => /=; congruence.
+rewrite !ffunE permE /=; do !case: eqP; congruence.
 Qed.
 
 Definition swap (I : finType) {A : Type} (i j : I) :
   AState {ffun I -> A} unit :=
-  mlet x := astate_get i in
-  mlet y := astate_get j in
-  astate_set i y;; astate_set j x.
+  SWAP (fin_encode i) (fin_encode j).
 
 Lemma run_swap (I : finType) (A : Type) (i j : I) (f : {ffun I -> A}) :
-  run_AState (swap i j) f = (tt, [ffun k => f (tperm i j k)]).
+  run_AState (swap i j) f = (tt, perm_ffun (tperm i j) f).
 Proof. by rewrite run_SWAP !fin_encodeK. Qed.
 
 Global Opaque SWAP swap.

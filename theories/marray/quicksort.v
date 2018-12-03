@@ -142,7 +142,7 @@ Definition partition (pivot : A) :
 Variant partition_spec (pivot : A) (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   {k : 'I_#|I|.+1 | i <= k <= j} * {ffun I -> A} -> Prop :=
   PartitionSpec (p : {perm I}) (k : 'I_#|I|.+1) (Hk : i <= k <= j) :
-  let arr' := [ffun ix => arr (p ix)] in
+  let arr' := perm_ffun p arr in
   perm_on [set ix | i <= fin_encode ix < j] p ->
   (forall ix : 'I_#|I|, i <= ix < j ->
                         cmp pivot (arr' (fin_decode ix)) = (k <= ix)) ->
@@ -153,9 +153,6 @@ Lemma run_partition
   @partition_spec pivot i j arr (run_AState (partition pivot Hij) arr).
 Proof with rewrite ?run_AStateE.
 rewrite /partition /Fix.
-have Hid_arr (arr' : {ffun I -> A}):
-  arr' = [ffun ix => arr' ((1%g : {perm I}) ix)]
-  by apply/ffunP => ix; rewrite ffunE permE.
 elim/Acc_rect: i / (well_founded_ordgt i) (well_founded_ordgt i) j Hij arr
   => /= i _ IH Hi j Hij arr; rewrite -Fix_F_eq /=...
 case: run_up_search => i' Hi'0 Hi'1 Hi'2...
@@ -179,7 +176,7 @@ case: {2 3}(i'.+1 < j') (erefl (i'.+1 < j')) => [Hij' | /negbT];
             -(inj_tperm _ _ _ (@fin_decode_inj _)).
     move: (Hj'1 (ltnidx_rp (ltnm0m Hij'))) (Hi'1 (ltnidx_l (ltnW Hij')))
           (Hi'2 ix) (Hj'2 ix); case: tpermP; ssromega.
-- rewrite leq_eqVlt ltnS {2}(Hid_arr arr) => Hij'; constructor;
+- rewrite leq_eqVlt ltnS -{2}(perm_ffunE1 arr) => Hij'; constructor;
     rewrite ?perm_on1 //= => ix /andP [H H0]; rewrite ffunE permE.
   case/predU1P: Hij' => Hij'; last by move: (Hi'2 ix) (Hj'2 ix); ssromega.
   have Hij'' : i' < j' by rewrite Hij'.
@@ -218,7 +215,7 @@ Definition quicksort : AState {ffun I -> A} unit :=
 Variant quicksort_rec_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   unit * {ffun I -> A} -> Prop :=
   QuicksortRecSpec (p : {perm I}) :
-  let arr' := [ffun ix => arr (p ix)] in
+  let arr' := perm_ffun p arr in
   perm_on [set ix | i <= fin_encode ix < j] p ->
   (forall ix ix' : 'I_#|I|,
     i <= ix -> ix <= ix' -> ix' < j ->
@@ -227,7 +224,7 @@ Variant quicksort_rec_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
 
 Lemma QuicksortRecSpec_
       (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) (p : {perm I}) :
-  let arr' := [ffun ix => arr (p ix)] in
+  let arr' := perm_ffun p arr in
   perm_on [set ix | i <= fin_encode ix & fin_encode ix < j] p ->
   (forall ix ix' : 'I_#|I|,
     i <= ix -> ix < ix' -> ix' < j ->
@@ -243,16 +240,13 @@ Lemma run_quicksort_rec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   quicksort_rec_spec i j arr (run_AState (quicksort_rec i j) arr).
 Proof with rewrite ?run_AStateE.
 rewrite /quicksort_rec /Fix.
-have Hid_arr (arr' : {ffun I -> A}):
-  arr' = [ffun ix => arr' ((1%g : {perm I}) ix)]
-  by apply/ffunP => ix; rewrite ffunE permE.
 elim/Acc_rect: i / (well_founded_ordgt i) (well_founded_ordgt i) j arr =>
   i _ IHi Hi j arr; rewrite -Fix_F_eq /=.
 elim/Acc_rect: j / (well_founded_ordlt j) (well_founded_ordlt j) arr =>
   j _ IHj Hj arr; rewrite -Fix_F_eq /=.
 case: {2 3}(i.+1 < j) (erefl (i.+1 < j)) => [| /negbT];
   rewrite -/(is_true _) -?leqNgt => Hij; rewrite !run_AStateE /=;
-  last by rewrite {2}(Hid_arr arr);
+  last by rewrite -{2}(perm_ffunE1 arr);
           apply QuicksortRecSpec_; rewrite ?perm_on1 //; ssromega.
 case: (run_partition _ (i := ltnidx_ls (ltnW Hij))) => /= pp k Hk...
 set ix_pivot := ltnidx_l (ltnW Hij).
@@ -260,21 +254,16 @@ set ix_part := ltnidx_rp _.
 set arr' := ffun_set _ _ _.
 move=> Hpp Hpart.
 have {arr'} ->:
-     arr' = [ffun ix => arr ((tperm (fin_decode ix_part)
-                                    (fin_decode ix_pivot) * pp)%g ix)].
-  apply/ffunP => ix; rewrite !ffunE permM permE /=;
-  do !case: eqP => // _; rewrite (out_perm Hpp) // inE fin_decodeK; ssromega.
+  arr' = perm_ffun (tperm (fin_decode ix_part) (fin_decode ix_pivot) * pp) arr
+  by apply/ffunP => ix; rewrite !ffunE permM permE /=;
+     do !case: eqP => // _; rewrite (out_perm Hpp) // inE fin_decodeK; ssromega.
 case: {IHj} (IHj (ord_pred' _)); first by ssromega.
 rewrite /= /predn' => /= pl Hpl Hsortl.
 case: IHi => [| pr arr' Hpr]; first by case/andP: (Hk).
-have {arr'} ->:
-     arr' = [ffun ix => arr ((pr * pl * tperm (fin_decode ix_part)
-                                              (fin_decode ix_pivot) * pp)%g ix)]
-  by apply/ffunP => ?; rewrite !ffunE !permM.
-move=> Hsortr.
+subst arr'; rewrite -!perm_ffunEM mulgA => Hsortr.
 apply QuicksortRecSpec_ => [| ix ix' H H0 H1]; first by
   do !apply perm_onM; [ apply (subset_trans Hpr) | apply (subset_trans Hpl) | |
-                        apply (subset_trans Hpp)];
+                        apply (subset_trans Hpp) ];
   apply/subsetP => x; rewrite !inE; try ssromega;
   case: tpermP; rewrite ?eqxx => // -> _; rewrite fin_decodeK; ssromega.
 rewrite !ffunE !permM.
@@ -309,7 +298,7 @@ Qed.
 
 Variant quicksort_spec (arr : {ffun I -> A}) : unit * {ffun I -> A} -> Prop :=
   QuicksortSpec (p : {perm I}) :
-  let arr' := [ffun ix => arr (p ix)] in
+  let arr' := perm_ffun p arr in
   (forall ix ix' : 'I_#|I|,
     ix <= ix' -> cmp (arr' (fin_decode ix)) (arr' (fin_decode ix'))) ->
   quicksort_spec arr (tt, arr').
