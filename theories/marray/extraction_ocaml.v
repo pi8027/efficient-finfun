@@ -49,8 +49,8 @@ Extract Inductive AState => "(->)"
    (* bind *)   "(fun (f, g) s -> let r = f s in g r s)"
    (* frameL *) "(fun f (sl, _) -> f sl)"
    (* frameR *) "(fun f (_, sr) -> f sr)"
-   (* get *)    "(fun i s -> s.(i))"
-   (* set *)    "(fun (i, x) s -> s.(i) <- x)"]
+   (* GET *)    "(fun i s -> s.(i))"
+   (* SET *)    "(fun (i, x) s -> s.(i) <- x)"]
   "(* It is not permitted to use AState_rect in extracted code. *)".
 Extract Type Arity AState 1.
 

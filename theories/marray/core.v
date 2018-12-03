@@ -172,8 +172,8 @@ Definition run_AState_raw : forall S A, AState S A -> S -> A * S :=
                   let (a, sl') := f sl in (a, (sl', sr)))
   (* frameR *) (fun _ _ _ _ f '(sl, sr) =>
                   let (a, sr') := f sr in (a, (sl, sr')))
-  (* get *)    (fun _ _ i a => (a (fin_decode i), a))
-  (* set *)    (fun _ _ i x a => (tt, ffun_set (fin_decode i) x a)).
+  (* GET *)    (fun _ _ i s => (s (fin_decode i), s))
+  (* SET *)    (fun _ _ i x s => (tt, ffun_set (fin_decode i) x s)).
 
 Definition run_AState
            (S : copyType) (A : Type) (m : AState S A) (s : S) : A * S :=
