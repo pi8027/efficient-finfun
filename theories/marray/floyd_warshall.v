@@ -65,7 +65,7 @@ rewrite (negbTE H1) /=; apply/idP/existsP;
      exists (last y ys); rewrite H5 andbT; apply/connectP;
      exists (xs ++ y :: ys); rewrite (cat_path, last_cat) //= eqxx H3 /=;
      apply/andP; split; [move: H2 | move: H4];
-     apply sub_path => a b /andP [] -> ->; rewrite orbT.
+     apply: sub_path => a b /andP [] -> ->; rewrite orbT.
 (* shorten and splitting *)
 -
 Abort.
@@ -113,12 +113,12 @@ Lemma lt_add_distanceL d1 d2 d3 :
   lt_distance (add_distance d1 d2) d3 -> lt_distance d1 d3.
 Proof.
 by case: d1 d2 d3 => [? |] [? |] [? |] => //=;
-   apply leq_trans; rewrite ltnS leq_addr.
+   apply: leq_trans; rewrite ltnS leq_addr.
 Qed.
 
 Lemma lt_add_distanceR d1 d2 d3 :
   lt_distance (add_distance d1 d2) d3 -> lt_distance d2 d3.
-Proof. by rewrite add_distanceC; apply lt_add_distanceL. Qed.
+Proof. by rewrite add_distanceC; apply: lt_add_distanceL. Qed.
 
 (*
 Definition step (g : G) (x y : T) := if g (x, y) is Some _ then true else false.

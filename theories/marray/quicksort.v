@@ -96,7 +96,7 @@ case: {2 3}(j < i) (erefl (j < i)) => H; rewrite !run_AStateE;
 - case: {IH} (IH (ord_pred' (ltnm0m H))) => [| k Hk H1 H2]; first ssromega.
   rewrite !run_AStateE; constructor=> // i' /andP [] H3.
   rewrite leq_eqVlt => /orP [] H4;
-    [ congr (~~ (f (arr (_ _)))): H0 | apply H2 ]; ssromega.
+    [ congr (~~ (f (arr (_ _)))): H0 | apply: H2 ]; ssromega.
 - constructor; ssromega.
 Qed.
 
@@ -233,7 +233,7 @@ Lemma QuicksortRecSpec_
 Proof.
 by simpl=> H H'; constructor=> // ix ix' ?;
   rewrite leq_eqVlt => /predU1P [/ord_inj <- | ?] ?;
-  [ apply Hcmp_refl | apply H' ].
+  [ apply: Hcmp_refl | apply: H' ].
 Qed.
 
 Lemma run_quicksort_rec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
@@ -247,7 +247,7 @@ elim/Acc_rect: j / (well_founded_ordlt j) (well_founded_ordlt j) arr =>
 case: {2 3}(i.+1 < j) (erefl (i.+1 < j)) => [| /negbT];
   rewrite -/(is_true _) -?leqNgt => Hij; rewrite !run_AStateE /=;
   last by rewrite -{2}(perm_ffunE1 arr);
-          apply QuicksortRecSpec_; rewrite ?perm_on1 //; ssromega.
+          apply: QuicksortRecSpec_; rewrite ?perm_on1 //; ssromega.
 case: (run_partition _ (i := ltnidx_ls (ltnW Hij))) => /= pp k Hk...
 set ix_pivot := ltnidx_l (ltnW Hij).
 set ix_part := ltnidx_rp _.
@@ -261,9 +261,9 @@ case: {IHj} (IHj (ord_pred' _)); first by ssromega.
 rewrite /= /predn' => /= pl Hpl Hsortl.
 case: IHi => [| pr arr' Hpr]; first by case/andP: (Hk).
 subst arr'; rewrite -!perm_ffunEM mulgA => Hsortr.
-apply QuicksortRecSpec_ => [| ix ix' H H0 H1]; first by
-  do !apply perm_onM; [ apply (subset_trans Hpr) | apply (subset_trans Hpl) | |
-                        apply (subset_trans Hpp) ];
+apply: QuicksortRecSpec_ => [| ix ix' H H0 H1]; first by
+  do !apply: perm_onM; [ apply: (subset_trans Hpr) | apply: (subset_trans Hpl) |
+                       | apply: (subset_trans Hpp) ];
   apply/subsetP => x; rewrite !inE; try ssromega;
   case: tpermP; rewrite ?eqxx => // -> _; rewrite fin_decodeK; ssromega.
 rewrite !ffunE !permM.
@@ -274,7 +274,7 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
   move: (perm_closed (fin_decode ix) Hpl) (perm_closed (fin_decode ix') Hpr);
     rewrite !inE !fin_decodeK => H4 H5.
   rewrite (out_perm (x := pr _) Hpl); last by rewrite !inE; ssromega.
-  apply Hcmp_trans with (arr (fin_decode ix_pivot)); first apply Hcmp_asym;
+  apply Hcmp_trans with (arr (fin_decode ix_pivot)); first apply: Hcmp_asym;
     rewrite -(fin_encodeK (tperm _ _ _)) -(ffunE (fun ix => arr (pp ix))) Hpart
             (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
     case: tpermP; ssromega.
@@ -283,7 +283,7 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
             out_perm (x := _ ix_pivot) Hpp);
     try by rewrite inE fin_decodeK; ssromega.
   move: (perm_closed (fin_decode ix) Hpl); rewrite !inE fin_decodeK /= => H2.
-  apply Hcmp_asym.
+  apply: Hcmp_asym.
   rewrite -[X in pp X]fin_encodeK -(ffunE (fun ix => arr (pp ix))) Hpart
           (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
     case: tpermP; ssromega.

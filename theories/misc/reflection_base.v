@@ -23,11 +23,11 @@ Lemma leq_index_refl : reflexive leq_index.
 Proof. by elim. Qed.
 
 Lemma leq_index_trans : transitive leq_index.
-Proof. by elim=> [x IH | x IH |] [y | y |] [z | z |] //=; apply IH. Qed.
+Proof. by elim=> [x IH | x IH |] [y | y |] [z | z |] //=; apply: IH. Qed.
 
 Lemma leq_index_antisym (x y : index) :
   leq_index x y -> leq_index y x -> x = y.
-Proof. by elim: x y => [x IH | x IH |] [y | y |] //= *; f_equal; apply IH. Qed.
+Proof. by elim: x y => [x IH | x IH |] [y | y |] //= *; f_equal; apply: IH. Qed.
 
 Lemma leq_index_total (x y : index) : leq_index x y || leq_index y x.
 Proof. by elim: x y => [x IH | x IH |] []. Qed.

@@ -79,7 +79,7 @@ Lemma lez_divL d m n : (0 < d -> m <= n * d -> m %/ d <= n)%Z%R.
 Proof.
 by move=> H H0;
   rewrite -(ler_pmul2r H) (ler_trans _ H0) // -[X in (X <= _)%R]addr0
-          {2}(divz_eq m d) ler_add2l; apply modz_ge0, lt0r_neq0.
+          {2}(divz_eq m d) ler_add2l; apply/modz_ge0/lt0r_neq0.
 Qed.
 
 (* Range finType *)
@@ -155,7 +155,7 @@ Definition reachable' p q := q \in enum_reachable p.
 Lemma reachable'P (p q : A) :
   reflect (exists w, q = delta p w) (reachable' p q).
 Proof.
-rewrite /reachable' /enum_reachable; apply (iffP dfsP).
+rewrite /reachable' /enum_reachable; apply: (iffP dfsP).
 - case=> qs H -> {q}; elim: qs p H => //=.
   + by move=> p _; exists [::].
   + move=> q qs IH p /andP [] /mapP [] x H -> {q} /IH {IH} [xs H0].
@@ -247,7 +247,7 @@ Fixpoint assign_of_word (w : seq (bool ^ fvs)) : nat ^ fvs :=
 
 Lemma max_div2_ffunE (assign : nat ^ fvs) :
   \max_i [ffun i' => assign i' %/ 2] i = (\max_i assign i) %/ 2.
-Proof. rewrite -max_div; apply eq_bigr => /= i _; apply ffunE. Qed.
+Proof. rewrite -max_div; apply: eq_bigr => /= i _; apply: ffunE. Qed.
 
 Lemma woa'_eq n m (assign : nat ^ fvs) :
   \max_(i < fvs) assign i <= n -> \max_(i < fvs) assign i <= m ->
@@ -259,9 +259,9 @@ elim: n m assign => [[| m] assign | n IH [| m] assign] //=;
     apply/ffunP => i; rewrite ffunE; case: (assign i) (H i erefl).
 - by move=> H0 _ /bigmax_leqP H; case: H0;
     apply/ffunP => i; rewrite ffunE; case: (assign i) (H i erefl).
-- by move=> _ H H0; congr cons; apply IH; rewrite max_div2_ffunE;
+- by move=> _ H H0; congr cons; apply: IH; rewrite max_div2_ffunE;
     [move: H | move: H0]; case: (\max_i _) => [| [| x]] //; rewrite ltnS;
-    apply leq_trans; rewrite -add2n divnDl // divnn add1n ltnS leq_div.
+    apply: leq_trans; rewrite -add2n divnDl // divnn add1n ltnS leq_div.
 Qed.
 
 Lemma woa_ind (P : nat ^ fvs -> seq (bool ^ fvs) -> Prop) :
@@ -276,18 +276,18 @@ set n := (\max_(i < fvs) I i).
 move: {2 3}n (leqnn n); rewrite {}/n => n; elim: n I => /=.
 - move=> I /bigmax_leqP /= H1.
   have -> //: I = [ffun => 0] by
-    apply/ffunP => /= i; rewrite ffunE; apply /eqP; rewrite -leqn0; apply H1.
+    apply/ffunP => /= i; rewrite ffunE; apply/eqP; rewrite -leqn0; apply: H1.
 - move=> n IH I H1; case: eqP => [-> | H2] //.
   have {1}->: I = [ffun i => [ffun i => odd (I i)] i +
                              [ffun i => I i %/ 2] i * 2] by
     apply/ffunP => /= i; rewrite !ffunE -modn2 addnC -divn_eq.
-  apply H0, IH.
-  + by move/eqP: H2; apply contra; case/andP => H3 H4;
+  apply/H0/IH.
+  + by move/eqP: H2; apply: contra; case/andP => H3 H4;
       apply/eqP/ffunP => /= i; rewrite (divn_eq (I i) 2) modn2;
       move/eqP/ffunP/(_ i): H3; move/eqP/ffunP/(_ i): H4;
       rewrite !ffunE => -> ->.
   + rewrite max_div2_ffunE.
-    move: H1; apply contraTT; rewrite -!ltnNge leq_divRL // => H1.
+    move: H1; apply: contraTT; rewrite -!ltnNge leq_divRL // => H1.
     by apply: (leq_trans _ H1); rewrite mulSn !ltnS muln2 -addnn leq_addr.
 Qed.
 
@@ -301,9 +301,9 @@ rewrite /word_of_assign; case: eqP => [-> |].
 - rewrite max_div2_ffunE.
   case: {2 3 4}(\max_(i < fvs) assign i) (erefl (\max_(i < fvs) assign i)).
   + by move/eq_leq/bigmax_leqP => /= H0; case;
-      apply/ffunP => i; apply/eqP; rewrite ffunE -leqn0; apply H0.
+      apply/ffunP => i; apply/eqP; rewrite ffunE -leqn0; apply: H0.
   + move=> /= n H /eqP /negbTE ->; congr cons.
-    apply woa'_eq; rewrite max_div2_ffunE // H //.
+    apply: woa'_eq; rewrite max_div2_ffunE // H //.
     by case: n {H} => // n; rewrite -add2n divnDl // divnn add1n ltnS leq_div.
 Qed.
 
@@ -320,13 +320,13 @@ move: {2 3}n (leqnn n); rewrite {}/n => n; elim: n I => /=.
 - move=> n IH I H; case: eqP => [-> | _ /=] //.
   apply/ffunP => /= i; rewrite IH;
     first by rewrite !ffunE -modn2 addnC -divn_eq.
-  move: H; apply contraTT.
+  move: H; apply: contraTT.
   rewrite max_div2_ffunE -!ltnNge leq_divRL //.
   by move/(leq_trans _); apply; rewrite mulSn !addSn !ltnS leq_pmulr.
 (*
 Restart.
   by rewrite /cancel;
-    apply (@woa_ind (fun I w => assign_of_word w = I)) => //= c I w _ <-.
+    apply: (@woa_ind (fun I w => assign_of_word w = I)) => //= c I w _ <-.
 *)
 Qed.
 
@@ -383,9 +383,9 @@ case: q => /= q /andP []; rewrite /state_lb /state_ub // => H H0.
 by apply/andP; split;
   [case: minrP H {H0} => H H0; rewrite lez_divRL // |
    case: maxrP H0 {H} => H H0; rewrite lez_divL //];
-rewrite mulz2 ler_add //; [apply (ler_trans H) | | apply: (ler_trans _ H) |];
+rewrite mulz2 ler_add //; [apply: (ler_trans H) | | apply: (ler_trans _ H) |];
 rewrite ler_opp2 big_mkcond [X in (_ <= X)%R]big_mkcond /=;
-apply ler_sum => i _; case: (ch i); case: ifP => // /negbT;
+apply: ler_sum => i _; case: (ch i); case: ifP => // /negbT;
 rewrite -ltrNge ltr_def => /andP [].
 Qed.
 
@@ -412,7 +412,7 @@ Lemma afdfa_step ch w :
    \sum_(i < fvs | ch i) cs i)%R =
   (\sum_(m < fvs) cs m * [ffun i => (ch i + (assign_of_word w) i * 2)%N] m)%R.
 Proof.
-rewrite big_distrl /= (big_mkcond ch) -big_split /=; apply eq_bigr => i _.
+rewrite big_distrl /= (big_mkcond ch) -big_split /=; apply: eq_bigr => i _.
 by rewrite ffunE -mulrb -mulr_natr natz -mulrA -mulrDr addrC PoszD PoszM.
 Qed.
 
@@ -421,7 +421,7 @@ Lemma leq_dfaP w :
 Proof.
 rewrite delta_accept unfold_in /=.
 elim: w n afdfa_s_proof => /= [| ch w IH] n' H.
-- by congr Num.le; apply big_rec => // i x _ <-; rewrite ffunE mulr0.
+- by congr Num.le; apply: big_rec => // i x _ <-; rewrite ffunE mulr0.
 - by rewrite {}IH lez_divRL // ler_subr_addr afdfa_step.
 Qed.
 
@@ -430,7 +430,7 @@ Lemma eq_dfaP w :
 Proof.
 rewrite delta_accept unfold_in /=.
 elim: w n afdfa_s_proof => /= [| ch w IH] n' H;
-  first by congr (_ == _); apply big_rec => //= i x _ <-; rewrite ffunE mulr0.
+  first by congr (_ == _); apply: big_rec => //= i x _ <-; rewrite ffunE mulr0.
 rewrite delta_cons -afdfa_step /=; case: ifP => /=.
 + rewrite IH eqz_mod_dvd.
   have/mulrIz/inj_eq <-: (2 != 0 :> int) by [].
@@ -490,7 +490,7 @@ Lemma exists_nfa_finP q :
                         assign_of_word w = cons_tuple x0 [ffun => 0])
           (exists_nfa_fin q).
 Proof.
-rewrite /exists_nfa_fin; apply (iffP hasP).
+rewrite /exists_nfa_fin; apply: (iffP hasP).
 - move=> [q'] /dfsP [qs H ->] {q'}; elim: qs q H => /=.
   + by move=> q _ H; exists 0, [::];
       rewrite delta_accept cons_tuple_const; split.
@@ -679,18 +679,18 @@ Lemma nt_correct fvs (t : term fvs) assign :
 Proof.
 elim: t assign => [n assign | v assign || c t] /=.
 - rewrite -{1}(add0r (n : int)); congr (_ + _)%R.
-  by apply big_ind => [| x y <- <- | ? _] //; rewrite ffunE mul0r.
+  by apply: big_ind => [| x y <- <- | ? _] //; rewrite ffunE mul0r.
 - rewrite addr0 (bigID (eq_op^~ v)) /= big_pred1_eq ffunE eqxx mul1r addrC.
   apply/eqP; rewrite -subr_eq addrN; apply/eqP;
-    apply big_ind => [| x y <- <- | ? /negPf] //.
+    apply: big_ind => [| x y <- <- | ? /negPf] //.
   by rewrite ffunE eq_sym => -> /=; rewrite mul0r.
 - move=> t; case_eq (normal_t t) => cs n _ IHl.
   move=> t'; case_eq (normal_t t') => cs' m _ IHr i.
   rewrite PoszD IHl IHr !addrA (addrAC _ n); congr (_ + _ + _)%R.
-  by rewrite -big_split /=; apply eq_big => // i' _; rewrite ffunE mulrDl.
+  by rewrite -big_split /=; apply: eq_big => // i' _; rewrite ffunE mulrDl.
 - case_eq (normal_t t) => cs n H IH i.
   by rewrite PoszM IH mulrDr big_distrr /= -{2}natz mulr_natl;
-    f_equal; apply eq_big => // i' _; rewrite ffunE -mulr_natl natz mulrA.
+    f_equal; apply: eq_big => // i' _; rewrite ffunE -mulr_natl natz mulrA.
 Qed.
 
 Lemma nf_correct fvs (f : formula fvs) assign :
@@ -702,20 +702,20 @@ have Hbigop fvs' (a : nat ^ fvs') (cs cs' : int ^ fvs') :
     (\sum_(m0 < fvs') cs' m0 * a m0 - \sum_(m0 < fvs') cs m0 * a m0)%R
   = (\sum_(m0 < fvs') [ffun var => cs' var - cs var] m0 * a m0)%R
   by rewrite (big_endo _ (@opprD _)) // -big_split /=;
-    apply eq_bigr => // i _; rewrite ffunE mulrDl mulNr.
+    apply: eq_bigr => // i _; rewrite ffunE mulrDl mulNr.
 move=> dne; move: fvs f assign; refine (formula_ind _ _ _ _ _ _ _ _ _) =>
   [fvs f IH assign | fvs f IH assign | fvs f IH assign |
    fvs f IHl f' IHr assign | fvs f IHl f' IHr assign | fvs f IHl f' IHr assign |
    fvs t t' assign /= | fvs t t' assign /= | fvs t t' assign /=].
 - split=> /= [H [a] | H a].
-  + by apply; apply IH, H.
-  + by apply IH, dne => H0; apply H; exists a.
-- by split; case=> a H; exists a; apply IH.
-- by split=> H H0; apply H, IH.
-- by split; case=> H H0; (split; [apply IHl | apply IHr]).
-- by split; (case=> H; [left; apply IHl | right; apply IHr]).
-- split=> [H | /= [H /IHl /H [] | H H0]]; last by apply IHr.
-  by apply dne => /Decidable.not_or [] /dne /IHl /H /IHr.
+  + by apply; apply/IH/H.
+  + by apply/IH/dne => H0; apply: H; exists a.
+- by split; case=> a H; exists a; apply/IH.
+- by split=> H H0; apply/H/IH.
+- by split; case=> H H0; (split; [apply/IHl | apply/IHr]).
+- by split; (case=> H; [left; apply/IHl | right; apply/IHr]).
+- split=> [H | /= [H /IHl /H [] | H H0]]; last by apply/IHr.
+  by apply/dne => /Decidable.not_or [] /dne /IHl /H /IHr.
 - rewrite -lez_nat !nt_correct.
   case_eq (normal_t t); case_eq (normal_t t') => /= cs n _ cs' m _.
   by rewrite -ler_subr_addr -addrA addrC -ler_subl_addr Hbigop.
@@ -748,12 +748,12 @@ Proof.
 move: fvs f w; refine (nformula_rect _ _ _ _ _ _) =>
   [fvs f IH w | fvs f IH w | fvs f IHl f' IHr w | fvs f IHl f' IHr w |
    fvs t n w | fvs t n w] /=.
-- by rewrite -nfa_to_dfa_correct; apply exists_nfaP, IH.
+- by rewrite -nfa_to_dfa_correct; apply/exists_nfaP/IH.
 - by rewrite dfa_compl_correct; apply: (iffP idP) => /IH.
 - by rewrite dfa_op_correct; apply: (iffP andP); case=> /IHl H /IHr H0.
 - by rewrite dfa_op_correct; apply: (iffP orP); case=> [/IHl | /IHr]; tauto.
-- by rewrite leq_dfaP; apply idP.
-- by rewrite eq_dfaP; apply idP.
+- by rewrite leq_dfaP; apply: idP.
+- by rewrite eq_dfaP; apply: idP.
 Qed.
 
 (* decision procedures *)
@@ -766,10 +766,10 @@ Theorem presburger_dec_wP fvs (f : formula fvs) w :
 Proof.
 have dec_dne P : decidable P -> ~ ~ P -> P by case.
 rewrite /presburger_dec_w.
-apply (iffP (dfa_of_nformula_correct _ _));
+apply/(iffP (dfa_of_nformula_correct _ _));
   apply nf_correct => fvs' f' assign' /=;
   rewrite -(cancel_woa_aow assign');
-  apply dec_dne; apply (decP (dfa_of_nformula_correct _ _)).
+  apply: dec_dne; apply: (decP (dfa_of_nformula_correct _ _)).
 Qed.
 
 Definition presburger_dec fvs (f : formula fvs) assign :=
@@ -777,7 +777,7 @@ Definition presburger_dec fvs (f : formula fvs) assign :=
 
 Theorem presburger_decP fvs (f : formula fvs) assign :
   reflect (interpret_formula f assign) (presburger_dec f assign).
-Proof. by apply (iffP (presburger_dec_wP f _)); rewrite cancel_woa_aow. Qed.
+Proof. by apply: (iffP (presburger_dec_wP f _)); rewrite cancel_woa_aow. Qed.
 
 Definition presburger_st_dec (f : formula 0) :=
   [::] \in dfa_lang (dfa_of_nformula (normal_f f)).
@@ -798,7 +798,7 @@ Theorem presburger_satP fvs (f : formula fvs) :
 Proof.
 rewrite /presburger_sat.
 set A := dfa_of_nformula (normal_f f).
-apply (iffP hasP); case.
+apply: (iffP hasP); case.
 - move=> q /reachable'P [] /= w -> H.
   exists (assign_of_word w); apply/presburger_dec_wP.
   by rewrite /presburger_dec_w delta_accept.
@@ -817,10 +817,10 @@ Theorem presburger_validP fvs (f : formula fvs) :
 Proof.
 rewrite /presburger_valid.
 set A := dfa_of_nformula (normal_f f).
-apply (iffP allP) => H.
+apply: (iffP allP) => H.
 - move=> assign; apply/presburger_decP;
     rewrite /presburger_dec /presburger_dec_w delta_accept.
-  by apply H; apply/reachable'P; eexists.
+  by apply: H; apply/reachable'P; eexists.
 - move=> x /reachable'P [] /= w -> {x}.
   by move/presburger_dec_wP: (H (assign_of_word w));
     rewrite /presburger_dec_w delta_accept.

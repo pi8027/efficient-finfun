@@ -47,7 +47,7 @@ by elim: xs => [| [[b ys] zs] [| x xs] IH] //=;
   rewrite -(perm_eqlP (sort_Seq_perm _ _)) -(perm_eqrP (sort_Seq_perm _ _)) =>
     /perm_flatten_map /perm_eqlP -> /perm_flatten_map /perm_eqrP ->;
   rewrite !flatten_mapE !map_cat !flatten_cat perm_cat2l;
-  case=> // Hl Hr; split=> //; apply IH.
+  case=> // Hl Hr; split=> //; apply: IH.
 Qed.
 
 Ltac perm_norm A tag vmap eqs :=

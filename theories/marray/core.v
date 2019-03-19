@@ -379,7 +379,7 @@ move: (f_equal rev (val_enum_ord n)); rewrite -map_rev -{2}(revK (enum _)).
 move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs => [| i IH] H x; first by case.
 rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs [] H0 H1.
-have <-: i' = Ordinal H by apply val_inj.
+have <-: i' = Ordinal H by apply: val_inj.
 by rewrite rev_cons -cats1 foldr_cat /= -(IH (ltnW H)).
 Qed.
 
@@ -406,7 +406,7 @@ move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs s => [| i IH] H x;
   first by case=> //= s _; rewrite run_AStateE.
 rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
-have <-: i' = Ordinal H by apply val_inj.
+have <-: i' = Ordinal H by apply: val_inj.
 by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
   case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).
 Qed.
@@ -431,7 +431,7 @@ move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi x xs s => [| i IH] H x;
   first by case=> //= s _; rewrite run_AStateE.
 rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
-have <-: i' = Ordinal H by apply val_inj.
+have <-: i' = Ordinal H by apply: val_inj.
 by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
   case: (run_AState (g i' x) s) => s' y; rewrite -(IH (ltnW H)).
 Qed.
@@ -467,7 +467,7 @@ move: (rev _) (leqnn _) => /= xs;
   move: {1 5 6}n => i Hi; elim: i Hi xs s => [| i IH] H;
   first by case=> //= s _; rewrite run_AStateE.
 rewrite -{1}addn1 iota_add add0n /= rev_cat => -[] //= i' xs s [] H0 H1.
-have <-: i' = Ordinal H by apply val_inj.
+have <-: i' = Ordinal H by apply: val_inj.
 by rewrite run_AStateE rev_cons -cats1 foldr_cat /=;
   case: (run_AState (g i') s) => s' y; rewrite -(IH (ltnW H)).
 Qed.

@@ -250,13 +250,13 @@ Lemma well_founded_ordgt (n : nat) : well_founded (fun i j : 'I_n => j < i).
 Proof.
 move=> i; elim: {3}n i (leq_addr i n) => [i | m IH i H];
   first by rewrite add0n => /(leq_trans (ltn_ord i)); rewrite ltnn.
-by constructor=> j H0; apply IH, (leq_trans H); rewrite addSnnS leq_add2l.
+by constructor=> j H0; apply/IH/(leq_trans H); rewrite addSnnS leq_add2l.
 Qed.
 
 Lemma well_founded_ordlt (n : nat) : well_founded (fun i j : 'I_n => i < j).
 Proof.
 move=> i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
-by rewrite ltnS => H; constructor=> j H0; apply IH, (leq_trans H0).
+by rewrite ltnS => H; constructor=> j H0; apply/IH/(leq_trans H0).
 Qed.
 
 Definition lshift' (m n : nat) (i : 'I_n) : 'I_(m + n) :=
