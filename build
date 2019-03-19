@@ -18,11 +18,6 @@ envset(){
     vfiles=(ordinal_ext.v core.v extraction_ocaml.v \
             union_find.v floyd_warshall.v quicksort.v)
   ;;
-  theories/marray2)
-    COQVER=mod
-    vfiles=(ordinal_ext.v core.v extraction_ocaml.v \
-            union_find.v floyd_warshall.v quicksort.v)
-  ;;
   esac
 
   MATHCOMP=$BASEDIR/math-comp-$COQVER/mathcomp
@@ -41,8 +36,7 @@ puterr(){
 
 #### Proof Scripts
 
-foreach dir (theories/before theories/after theories/misc \
-             theories/marray theories/marray2)
+foreach dir (theories/before theories/after theories/misc theories/marray)
 pushd $dir
 
   envset $dir
