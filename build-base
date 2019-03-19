@@ -63,8 +63,8 @@ pushd $dir
   envset $dir
   tar xzf ../regular.tar.gz
   patch -p1 < ../regular.patch
-  coq_makefile -f Make -o Makefile
+  coq_makefile -R . regular $COQLIB -f Make -o Makefile
   make clean
-  make COQFLAGS="-q -R . regular $COQLIB -debug -native-compiler" -j 8
+  make COQFLAGS="-q -debug -native-compiler" -j 8
 popd
 end
