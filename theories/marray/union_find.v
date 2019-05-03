@@ -232,58 +232,58 @@ Definition compress x :=
              then inl (find g x) else g y].
 
 Lemma succ_subst x y z :
-  succ (ffun_set y z g) x =
+  succ (dffun_set y z g) x =
   if x == y then (if z is inl z' then z' else x) else succ g x.
-Proof. by rewrite /succ ffunE; case: ifP. Qed.
+Proof. by rewrite /succ ffun_setE eq_sym; case: ifP. Qed.
 
 Lemma find_subst_separated x y y' :
-  ~~ connect g x y -> find (ffun_set y y' g) x = find g x.
+  ~~ connect g x y -> find (dffun_set y y' g) x = find g x.
 Proof.
 by rewrite /find; elim: #|T| x => //= n IH x Hxy;
 rewrite succ_subst IH //; case: (_ =P y) Hxy => // <-; rewrite connect_iter.
 Qed.
 
 Lemma lacycle_subst_separated x y y' :
-  ~~ connect g x y -> lacycle (ffun_set y y' g) x = lacycle g x.
+  ~~ connect g x y -> lacycle (dffun_set y y' g) x = lacycle g x.
 Proof.
-by move=> Hxy; rewrite /lacycle find_subst_separated // /repr /classval ffunE;
-   case: (_ =P y) Hxy => //= <-; rewrite connect_iter.
+move=> Hxy; rewrite /lacycle find_subst_separated // /repr /classval ffun_setE.
+by case: (_ =P y) Hxy => //= <-; rewrite connect_iter.
 Qed.
 
 Lemma lacycle_substR x y a :
-  lacycle (ffun_set x (inr a) g) y = connect g y x || lacycle g y.
+  lacycle (dffun_set x (inr a) g) y = connect g y x || lacycle g y.
 Proof.
 case: (altP connectP) => /=; last apply: lacycle_subst_separated.
 case=> ys Hys Hx; subst x.
 elim/path_ind: y ys / Hys => [y | y ys H Hys] /=;
-  first by apply/repr_iter/reprP; rewrite ffunE eqxx; exists a.
+  first by apply/repr_iter/reprP; rewrite ffun_setE eqxx; exists a.
 rewrite -(lacycle_succ _ y) succ_subst; case: eqP H Hys => //.
 rewrite /repr /classval /succ; case: (g y) => // y' H H0 H1 _; subst y.
-by apply: lacycle_repr; rewrite /repr /classval ffunE eqxx.
+by apply: lacycle_repr; rewrite /repr /classval ffun_setE eqxx.
 Qed.
 
 Lemma lacycle_substL x y z :
-  lacycle (ffun_set x (inl y) g) z =
+  lacycle (dffun_set x (inl y) g) z =
   if connect g z x then ~~ connect g y x && lacycle g y else lacycle g z.
 Proof.
 case: (altP connectP) => [ [] zs Hzs -> {x} | /lacycle_subst_separated -> // ].
-apply eq_trans with (lacycle (ffun_set (last z zs) (inl y) g) y);
+apply eq_trans with (lacycle (dffun_set (last z zs) (inl y) g) y);
   first by elim/path_ind: z zs / Hzs => /= [z | z zs H Hzs H0];
            rewrite -lacycle_succ succ_subst ?eqxx //; case: ifP.
 move: (last _ _) => {z zs Hzs} x; case: (altP connectP);
   last exact: lacycle_subst_separated.
 case=> ys' /shortenP [] ys; rewrite -/(path _) => Hys H _ Hx;
   subst x => {ys'} /=; apply/negbTE.
-suff Hys': path (ffun_set (last y ys) (inl y) g) y (rcons ys y) by
+suff Hys': path (dffun_set (last y ys) (inl y) g) y (rcons ys y) by
   apply/negP => /path_uniq /(_ Hys') /=; rewrite mem_rcons inE eqxx.
-rewrite -cats1 /path cat_path -/(path _) /= ffunE !eqxx !andbT.
+rewrite -cats1 /path cat_path -/(path _) /= ffun_setE !eqxx !andbT.
 elim/path_ind: y ys / Hys (inl y) H => // y ys H Hys IH a /andP [H0 H1] /=.
-by rewrite IH // andbT ffunE; case: (altP (y =P _)) H0 => [{1}-> | _];
+by rewrite IH // andbT ffun_setE; case: (altP (y =P _)) H0 => [{1}-> | _];
    [ rewrite mem_last | rewrite inE /succ; case (g y) => b; rewrite eqxx ].
 Qed.
 
 Lemma lacycle_subst x y z :
-  lacycle (ffun_set x y g) z =
+  lacycle (dffun_set x y g) z =
   if y is inl y'
     then (if connect g z x
           then ~~ connect g y' x && lacycle g y' else lacycle g z)
@@ -292,30 +292,30 @@ Proof. by case: y => y; rewrite (lacycle_substL, lacycle_substR). Qed.
 
 Lemma find_substR x y a :
   lacycle g x ->
-  find (ffun_set y (inr a) g) x = if connect g x y then y else find g x.
+  find (dffun_set y (inr a) g) x = if connect g x y then y else find g x.
 Proof.
 move=> H; case: (boolP (connect _ _ _)) => H0;
   last by rewrite find_subst_separated.
 case/connectP: H0 => xs' /shortenP [xs]; rewrite -/(path _) => Hxs H0 _ ->.
-have {H0 Hxs xs'} Hxs: path (ffun_set (last x xs) (inr a) g) x xs by
+have {H0 Hxs xs'} Hxs: path (dffun_set (last x xs) (inr a) g) x xs by
   elim/path_ind: x xs / Hxs H0 {H} => // x xs H0 Hxs IH /andP [H1 H2] /=;
-  rewrite {}IH // andbT ffunE; move: H0 H1; rewrite /repr /classval /succ;
+  rewrite {}IH // andbT ffun_setE; move: H0 H1; rewrite /repr /classval /succ;
   case: (x =P _); case: (g x) => x'; rewrite ?eqxx //= => ->; rewrite mem_last.
 elim: xs x Hxs H => [x _ _ | x' xs IH x /andP []] //=;
   first by rewrite /find; elim: #|T| => //= n ->; rewrite succ_subst eqxx.
-rewrite ffunE; case: (altP (x =P _)) => //= H /eqP H0 H1 H2; move: (H2).
+rewrite ffun_setE; case: (altP (x =P _)) => //= H /eqP H0 H1 H2; move: (H2).
 rewrite -lacycle_succ /succ H0 => H2'.
 by rewrite -{2}IH // -succ_find ?lacycle_subst ?H2 ?orbT //
            succ_subst (negbTE H) /succ H0.
 Qed.
 
 Lemma connect_substL x y z :
-  connect (ffun_set y (inl z) g) x z = connect g x y || connect g x z.
+  connect (dffun_set y (inl z) g) x z = connect g x y || connect g x z.
 Proof.
 apply/idP/idP =>
   [/connectP [] xs Hxs Hz | /orP [] /connectP [] xs' /shortenP [xs]].
 - by subst z; elim: xs x Hxs => /= [x _ | x' xs IH x /andP []];
-     rewrite ?(connect0, orbT) // ffunE; case: (altP (x =P y)) => [-> |];
+     rewrite ?(connect0, orbT) // ffun_setE; case: (altP (x =P y)) => [-> |];
      rewrite ?connect0 // => H /eqP H0 /IH /orP [] H1; apply/orP;
      [left | right]; apply: connect_succL; rewrite /succ H0.
 - rewrite -/(path _) => Hxs Hxs' _ -> {y xs'}.
@@ -333,9 +333,9 @@ apply/idP/idP =>
 Qed.
 
 Lemma path_subst_separated x y z xs :
-  ~~ connect g x y -> path (ffun_set y z g) x xs = path g x xs.
+  ~~ connect g x y -> path (dffun_set y z g) x xs = path g x xs.
 Proof.
-elim: xs x => //= x' xs IH x H; rewrite ffunE.
+elim: xs x => //= x' xs IH x H; rewrite ffun_setE.
 have/negbTE ->: x != y by apply/contra: H => /eqP ->; apply: connect0.
 case: eqP => //= H0; apply: IH; apply/contra/connect_trans/connectP: H.
 by exists [:: x']; rewrite //= H0 eqxx.
@@ -343,11 +343,11 @@ Qed.
 
 Lemma path_subst_graft x y xs :
   lacycle g x -> ~~ connect g x y ->
-  path g x xs -> path (ffun_set (last x xs) (inl y) g) x (rcons xs y).
+  path g x xs -> path (dffun_set (last x xs) (inl y) g) x (rcons xs y).
 Proof.
 move=> H H0 H1.
 elim/path_ind: x xs / H1 H H0 => /= [x H H0 | x xs H H0 H1 H2 H3];
-  rewrite ffunE ?eqxx //.
+  rewrite ffun_setE ?eqxx //.
 have H4: g x == inl (succ g x) by
   move: H; rewrite /repr /classval /succ; case: (g x) => x'; rewrite ?eqxx.
 have/(path_notin H2): path g x (succ g x :: xs) by rewrite /= H0 andbT.
@@ -428,28 +428,28 @@ Qed.
 Variable (Hg : acycle g).
 
 Lemma acycle_substL x y z :
-  lacycle (ffun_set x (inl y) g) z = ~~ (connect g z x && connect g y x).
+  lacycle (dffun_set x (inl y) g) z = ~~ (connect g z x && connect g y x).
 Proof. by rewrite lacycle_subst !Hg andbT; case: connect. Qed.
 
-Lemma acycle_substR x a : acycle (ffun_set x (inr a) g).
+Lemma acycle_substR x a : acycle (dffun_set x (inr a) g).
 Proof. by move=> y; rewrite lacycle_subst Hg orbT. Qed.
 
 Lemma find_substL_graft x y :
   ~~ connect g y (find g x) ->
-  find (ffun_set (find g x) (inl y) g) x = find g y.
+  find (dffun_set (find g x) (inl y) g) x = find g y.
 Proof.
 case/connectP: (connect_find g x) => xs' /shortenP [xs];
   rewrite -/(path _) => Hxs H _ -> H0 {xs'}.
 elim/path_ind: x xs / Hxs H H0 => /= [x _ H0 | x xs H Hxs IH /andP [] H0 H1 H2];
   first by rewrite -succ_find ?lacycle_subst ?connect0 ?H0 //=
-                   /succ ffunE eqxx find_subst_separated.
+                   /succ ffun_setE eqxx find_subst_separated.
 rewrite -{}IH // -succ_find; last by rewrite lacycle_subst H2 andTb; case: ifP.
-by rewrite !/(succ _ _) ffunE; case: eqP H0 => [{1}-> | _ H0];
+by rewrite !/(succ _ _) ffun_setE; case: eqP H0 => [{1}-> | _ H0];
   [ rewrite mem_last | case: (g x) ].
 Qed.
 
 Lemma find_substL x y z :
-  ~~ connect g y (find g x) -> find (ffun_set (find g x) (inl y) g) z =
+  ~~ connect g y (find g x) -> find (dffun_set (find g x) (inl y) g) z =
                                find g (if findeq g z x then y else z).
 Proof.
 by rewrite /findeq; case: (altP (find g z =P _)) => [<- Hzy | Hzx Hxy];
@@ -498,7 +498,7 @@ rewrite reprE // /(succ g x); case_eq (g x) => x';
   rewrite ?eqxx //= inE !run_AStateE negb_or -andbA
     => H H0 H1 H2 /and4P [_ H3 H4 H5] H6.
 rewrite H !run_AStateE {}H2 ?H4 //= !run_AStateE.
-congr (_, _); apply/ffunP => y; rewrite !ffunE.
+congr (_, _); apply/ffunP => y; rewrite ffun_setE !ffunE.
 move/eqP: H6 => H6; rewrite !inE; do !case: eqP => //=; congruence.
 Qed.
 
@@ -507,8 +507,7 @@ Lemma run_mfind x :
 Proof.
 case/connectP: (connect_find g x) => xs Hxs H.
 have Hrepr: repr g (last x xs) by rewrite -H; apply: Hg.
-rewrite H /mfind -cardT' (@run_mfind_rec #|T| x xs) //
-        ?(path_size (Hg _) Hxs) //.
+rewrite H /mfind raw_cardE (run_mfind_rec Hxs) // ?(path_size (Hg _) Hxs) //.
 congr (_, _, _); apply/ffunP => y; rewrite !ffunE H /connect fconnect_orbit.
 congr (if (_ \in _) && _ then _ else _).
 rewrite /orbit /order -/(connect _) -(eq_card (full_path_connect Hxs _)) //.
@@ -528,8 +527,8 @@ Definition union x y :=
   let g' := compress (compress g x) y in
   if findeq g x y then g' else
     if cmp (classval g x') (classval g y')
-    then ffun_set y' (inr v) (ffun_set x' (inl y') g')
-    else ffun_set x' (inr v) (ffun_set y' (inl x') g').
+    then dffun_set y' (inr v) (dffun_set x' (inl y') g')
+    else dffun_set x' (inr v) (dffun_set y' (inl x') g').
 
 Definition munion x y : AState {ffun T -> T + R} unit :=
   mlet '(xr, xv) := mfind x in

@@ -99,12 +99,6 @@ Extract Inlined Constant intOrdered.ltz => "(<)".
 
 (* function types *)
 
-(*
-Extract Inductive simpl_fun => "( -> )" ["(* SimplFun *)"] "(* simpl_fun_rec *)".
-
-Extract Inductive mem_pred => "pred" ["(* Mem *)"] "(* mem_pred_rec *)".
-*)
-
 Extraction Inline Option.default Option.bind Option.map.
 
 Extraction Inline
@@ -159,7 +153,15 @@ Extraction Inline
 (* finTypes *)
 
 Extraction Inline
-  Finite.EnumDef.enum enum_mem index_enum CardDef.card
+  Finite.mixin_base Finite.mixin_enum Finite.mixin_card Finite.mixin_enc
+  Finite.mixin_dec
+  Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone Finite.pack
+  Finite.eqType Finite.choiceType Finite.countType Finite.EnumDef.enum
+  Finite.card Finite.encode Finite.decode fin_encode fin_decode
+  prod_fin_encode prod_fin_decode (* finfun_fin_encode finfun_fin_decode *).
+
+Extraction Inline
+  enum_mem index_enum CardDef.card
   pred0b FiniteQuant.quant0b FiniteQuant.ex
   ordinal_finType ordinal_finMixin exp_finIndexType
   unit_finType unit_finMixin bool_finType bool_finMixin
@@ -168,7 +170,7 @@ Extraction Inline
   finfun_finType dfinfun_finType finfun.finMixin
   set_finType set_of_finType set_finMixin.
 
-(* tuple and finfun *)
+(* tuple *)
 
 Extract Inductive
   tuple_of => "array"
@@ -187,6 +189,31 @@ Extract Constant map_tuple => "Array.map".
 Extract Constant mktuple => "Array.init".
 
 Extraction Inline tuple tval tcast.
+
+(* finfun *)
+
+Extract Inductive finfun_on => "list" ["[]" "(::)"].
+Extract Inductive
+  finfun_of => "array"
+                 ["Array.of_list"]
+                 "(fun f t -> f (Array.to_list t))".
+
+Extraction Implicit finfun_cons [x s].
+Extraction Implicit finfun.finfun_rec [aT].
+Extraction Implicit finfun.fun_of_fin_rec [aT s].
+Extraction Implicit finfun.finfun' [aT].
+Extraction Implicit finfun.fun_of_fin' [aT].
+
+Extract Inlined Constant finfun.finfun' => "ExtArray.init".
+Extract Inlined Constant finfun.fun_of_fin' => "Array.unsafe_get".
+
+Extraction Inline
+  finfun.finfun_rec finfun.fun_of_fin_rec finfun.finfun finfun.fun_of_fin
+  finfun fgraph.
+
+Extraction Inline
+  finfun_of_set SetDef.finset SetDef.pred_of_set SetDef.finsetE
+  SetDef.pred_of_setE.
 
 (* algebra *)
 

@@ -44,8 +44,8 @@ foreach dir (math-comp-orig math-comp-mod)
 pushd $dir/mathcomp
   envset $dir
   make clean
-  make COQFLAGS="-q $COQLIB -debug -native-compiler" -j 8
-    #ssreflect/all_ssreflect.vo fingroup/all_fingroup.vo algebra/all_algebra.vo
+  make only COQFLAGS="-q $COQLIB -debug -native-compiler" -j \
+    TGTS='all/all.vo'
 popd
 end
 

@@ -51,5 +51,5 @@ Set Extraction Flag 2031.
 Extraction "../../ocaml/matrix_before.ml" matrix_mult_test finfun_app_test.
 
 Extraction "../../ocaml/presburger_before.ml"
-           bool_finType finfun_of_finType exp_finIndexType f_divisible
+           bool_finType finfun_finType exp_finIndexType f_divisible
            presburger_dec presburger_st_dec presburger_sat presburger_valid.

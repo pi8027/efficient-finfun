@@ -146,7 +146,7 @@ by apply/val_inj; rewrite /= {1}(addrC i j) addrAC subrK.
 Qed.
 
 Definition range_finMixin :=
-  Eval hnf in BijOrdMixin range_fin_encodeK range_fin_decodeK.
+  Eval hnf in BijFinMixin range_fin_encodeK range_fin_decodeK.
 Canonical range_finType := Eval hnf in FinType range range_finMixin.
 Canonical range_subFinType := Eval hnf in [subFinType of range].
 
@@ -166,7 +166,7 @@ Definition reachable' p q := q \in enum_reachable p.
 Lemma reachable'P (p q : A) :
   reflect (exists w, q = delta p w) (reachable' p q).
 Proof.
-rewrite /reachable' /enum_reachable -cardT'; apply: (iffP dfsP).
+rewrite /reachable' /enum_reachable raw_cardE; apply: (iffP dfsP).
 - case=> qs H -> {q}; elim: qs p H => //=.
   + by move=> p _; exists [::].
   + move=> q qs IH p /andP [] /mapP [] x H -> {q} /IH {IH} [xs H0].
@@ -351,7 +351,7 @@ move=> ch w [m H]; rewrite woa_step; case: eqP => [H0 | _].
   have {H} [-> -> ->] //:
     ch = [ffun => false] /\ assign_of_word w = [ffun => 0].
   by split; apply/ffunP => /= i; move/ffunP/(_ i): H; rewrite !ffunE;
-    case: (ch i); case ((assign_of_word w) i).
+    case: (ch i); case: (assign_of_word w i).
 - exists m; rewrite -{3}H /=; congr (_ :: word_of_assign _ ++ _);
     apply/ffunP => /= i; rewrite !ffunE.
   + by rewrite odd_add oddb odd_mul /= andbF addbF.
@@ -419,16 +419,16 @@ Definition eq_dfa : dfa [finType of bool ^ fvs] :=
   |}.
 
 Lemma afdfa_step ch w :
-  ((\sum_(m < fvs) cs m * (assign_of_word w) m) * 2 +
+  ((\sum_(m < fvs) cs m * assign_of_word w m) * 2 +
    \sum_(i < fvs | ch i) cs i)%R =
-  (\sum_(m < fvs) cs m * [ffun i => (ch i + (assign_of_word w) i * 2)%N] m)%R.
+  (\sum_(m < fvs) cs m * [ffun i => (ch i + assign_of_word w i * 2)%N] m)%R.
 Proof.
 rewrite big_distrl /= (big_mkcond ch) -big_split /=; apply: eq_bigr => i _.
 by rewrite ffunE -mulrb -mulr_natr natz -mulrA -mulrDr addrC PoszD PoszM.
 Qed.
 
 Lemma leq_dfaP w :
-  w \in dfa_lang leq_dfa = (\sum_(m < fvs) cs m * (assign_of_word w) m <= n)%R.
+  w \in dfa_lang leq_dfa = (\sum_(m < fvs) cs m * assign_of_word w m <= n)%R.
 Proof.
 rewrite delta_accept unfold_in /=.
 elim: w n afdfa_s_proof => /= [| ch w IH] n' H.
@@ -437,7 +437,7 @@ elim: w n afdfa_s_proof => /= [| ch w IH] n' H.
 Qed.
 
 Lemma eq_dfaP w :
-  w \in dfa_lang eq_dfa = (\sum_(m < fvs) cs m * (assign_of_word w) m == n)%R.
+  w \in dfa_lang eq_dfa = (\sum_(m < fvs) cs m * assign_of_word w m == n)%R.
 Proof.
 rewrite delta_accept unfold_in /=.
 elim: w n afdfa_s_proof => /= [| ch w IH] n' H;
@@ -501,7 +501,7 @@ Lemma exists_nfa_finP q :
                         assign_of_word w = cons_tuple x0 [ffun => 0])
           (exists_nfa_fin q).
 Proof.
-rewrite /exists_nfa_fin -cardT'; apply: (iffP hasP).
+rewrite /exists_nfa_fin raw_cardE; apply: (iffP hasP).
 - move=> [q'] /dfsP [qs H ->] {q'}; elim: qs q H => /=.
   + by move=> q _ H; exists 0, [::];
       rewrite delta_accept cons_tuple_const; split.
@@ -524,7 +524,7 @@ rewrite /exists_nfa_fin -cardT'; apply: (iffP hasP).
   + by move=> <-; rewrite odd_add odd_mul /= andbF addbF oddb.
   + by rewrite !ffunE; case: (ch i).
   + by move=> <-; rewrite addnC divnMDl // divn_small ?ltnS ?leq_b1.
-  + by rewrite ffunE; case: (ch i); case: ((assign_of_word w) i).
+  + by rewrite ffunE; case: (ch i); case: (assign_of_word w i).
 Qed.
 
 Lemma exists_nfaP w :

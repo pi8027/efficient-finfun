@@ -5,7 +5,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Load "../extraction_common.v".
+Load "../extraction_common_dffun.v".
 
 (* nat *)
 
@@ -18,15 +18,6 @@ Extract Inlined Constant subn' => "(* subn' *)(-)".
 Extraction Inline
   lshift' rshift' ltnidx_l ltnidx_ls ltnidx_rp ord_pred ord_pred'.
 
-(* finTypes *)
-
-Extraction Inline
-  fin_encode fin_decode
-  Finite.mixin_base Finite.mixin_card Finite.mixin_encode Finite.mixin_decode
-  Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone
-  Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
-  prod_fin_encode prod_fin_decode finfun_fin_encode finfun_fin_decode.
-
 (* copyTypes *)
 
 Extraction Implicit ffun_copy [I].
@@ -35,7 +26,7 @@ Extract Inlined Constant ffun_copy => "Array.copy".
 Extraction Inline
   CopyableMixin.copy CopyableMixin.ffun_mixin CopyableMixin.prod_mixin
   Copyable.class Copyable.pack Copyable.clone
-  copy finfun_copyType prod_copyType.
+  copy Copyable.finfun_copyType Copyable.prod_copyType.
 
 (* array state monad *)
 

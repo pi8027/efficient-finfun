@@ -30,7 +30,7 @@ let formula_of_string str : int * formula =
 ;;
 
 let states vars f =
-  let ch = finfun_of_finType (exp_finIndexType vars) bool_finType in
+  let ch = finfun_finType (exp_finIndexType vars) bool_finType in
   let dfa = dfa_of_nformula vars (normal_f vars f) in
   string_of_int (CardDef.card dfa.dfa_state (fun _ -> true)) ^
   ", " ^

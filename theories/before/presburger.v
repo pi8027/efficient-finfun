@@ -340,7 +340,7 @@ move=> ch w [m H]; rewrite woa_step; case: eqP => [H0 | _].
   have {H} [-> -> ->] //:
     ch = [ffun => false] /\ assign_of_word w = [ffun => 0].
   by split; apply/ffunP => /= i; move/ffunP/(_ i): H; rewrite !ffunE;
-    case: (ch i); case ((assign_of_word w) i).
+    case: (ch i); case: (assign_of_word w i).
 - exists m; rewrite -{3}H /=; congr (_ :: word_of_assign _ ++ _);
     apply/ffunP => /= i; rewrite !ffunE.
   + by rewrite odd_add oddb odd_mul /= andbF addbF.
@@ -408,16 +408,16 @@ Definition eq_dfa : dfa [finType of bool ^ fvs] :=
   |}.
 
 Lemma afdfa_step ch w :
-  ((\sum_(m < fvs) cs m * (assign_of_word w) m) * 2 +
+  ((\sum_(m < fvs) cs m * assign_of_word w m) * 2 +
    \sum_(i < fvs | ch i) cs i)%R =
-  (\sum_(m < fvs) cs m * [ffun i => (ch i + (assign_of_word w) i * 2)%N] m)%R.
+  (\sum_(m < fvs) cs m * [ffun i => (ch i + assign_of_word w i * 2)%N] m)%R.
 Proof.
 rewrite big_distrl /= (big_mkcond ch) -big_split /=; apply: eq_bigr => i _.
 by rewrite ffunE -mulrb -mulr_natr natz -mulrA -mulrDr addrC PoszD PoszM.
 Qed.
 
 Lemma leq_dfaP w :
-  w \in dfa_lang leq_dfa = (\sum_(m < fvs) cs m * (assign_of_word w) m <= n)%R.
+  w \in dfa_lang leq_dfa = (\sum_(m < fvs) cs m * assign_of_word w m <= n)%R.
 Proof.
 rewrite delta_accept unfold_in /=.
 elim: w n afdfa_s_proof => /= [| ch w IH] n' H.
@@ -426,7 +426,7 @@ elim: w n afdfa_s_proof => /= [| ch w IH] n' H.
 Qed.
 
 Lemma eq_dfaP w :
-  w \in dfa_lang eq_dfa = (\sum_(m < fvs) cs m * (assign_of_word w) m == n)%R.
+  w \in dfa_lang eq_dfa = (\sum_(m < fvs) cs m * assign_of_word w m == n)%R.
 Proof.
 rewrite delta_accept unfold_in /=.
 elim: w n afdfa_s_proof => /= [| ch w IH] n' H;
@@ -513,7 +513,7 @@ rewrite /exists_nfa_fin; apply: (iffP hasP).
   + by move=> <-; rewrite odd_add odd_mul /= andbF addbF oddb.
   + by rewrite !ffunE; case: (ch i).
   + by move=> <-; rewrite addnC divnMDl // divn_small ?ltnS ?leq_b1.
-  + by rewrite ffunE; case: (ch i); case: ((assign_of_word w) i).
+  + by rewrite ffunE; case: (ch i); case: (assign_of_word w i).
 Qed.
 
 Lemma exists_nfaP w :

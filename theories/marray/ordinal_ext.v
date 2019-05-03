@@ -4,12 +4,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Lemma fin_encode_inj (T : finType) : injective (@fin_encode T).
-Proof. by apply/can_inj/fin_encodeK. Qed.
-
-Lemma fin_decode_inj (T : finType) : injective (@fin_decode T).
-Proof. by apply/can_inj/fin_decodeK. Qed.
-
 (* nat *)
 
 Definition predn' (n : nat) (H : 0 < n) := n.-1.

@@ -5,7 +5,9 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Load "../extraction_common.v".
+Load "../extraction_common_dffun.v".
+
+Extraction Inline fst snd.
 
 (* range *)
 
@@ -13,14 +15,6 @@ Extraction Inline
   range_eqType range_eqMixin range_subType range_choiceType range_countType
   range_finType range_finMixin.
 
-(* finTypes *)
-
-Extraction Inline
-  fin_encode fin_decode
-  Finite.mixin_base Finite.mixin_card Finite.mixin_encode Finite.mixin_decode
-  Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone
-  Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
-  prod_fin_encode prod_fin_decode finfun_fin_encode finfun_fin_decode.
 
 (* automata *)
 
@@ -31,10 +25,10 @@ Extraction Inline
   automata.nfa_to_dfa automata.dfa_compl automata.dfa_op
   leq_dfa eq_dfa nfa_of_exists.
 
-(* avoiding extractor bugs: type mismatch, assertion failure, etc. *)
+(* Avoid extractor bugs: type mismatch, assertion failure, etc. *)
 
 Extract Constant SetDef.pred_of_set =>
-  "(Obj.magic (fun t a x -> tnth a (t.Finite.mixin.Finite.mixin_encode x)))".
+  "(Obj.magic (fun t a x -> tnth a (t.Finite.mixin.Finite.mixin_enc x)))".
 
 (* matrix *)
 
@@ -54,5 +48,5 @@ Set Extraction Flag 8175.
 Extraction "../../ocaml/matrix_after.ml" matrix_mult_test finfun_app_test.
 
 Extraction "../../ocaml/presburger_after.ml"
-           bool_finType finfun_of_finType exp_finIndexType f_divisible
+           bool_finType finfun_finType exp_finIndexType f_divisible
            presburger_dec presburger_st_dec presburger_sat presburger_valid.

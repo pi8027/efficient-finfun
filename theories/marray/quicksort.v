@@ -60,7 +60,7 @@ Definition down_search (i j : 'I_#|I|.+1) :
     (fun (i : 'I_#|I|.+1) rec (H : j <= i) =>
        (if j < i as cij return (j < i) = cij -> _
         then fun H' : j < i =>
-               mlet x := astate_GET (ltnidx_rp (ltnm0m H')) in
+               mlet x : A := astate_GET (ltnidx_rp (ltnm0m H')) in
                if f x
                then astate_ret (exist (fun k : 'I_ _ => j <= k <= i) i
                                       ltac:(by rewrite /= H leqnn))
@@ -169,11 +169,11 @@ case: {2 3}(i'.+1 < j') (erefl (i'.+1 < j')) => [Hij' | /negbT];
   set arr' := [ffun ix => arr _] => Hp Hpart; constructor.
   + rewrite perm_onM //; [ apply/(subset_trans Hp) | ]; apply/subsetP => ix;
       rewrite !inE; first ssromega.
-    rewrite -(inj_eq (@fin_encode_inj _)) (inj_tperm _ _ _ (@fin_encode_inj _))
+    rewrite -(inj_eq fin_encode_inj) (inj_tperm _ _ _ fin_encode_inj)
             !fin_decodeK; case: tpermP; ssromega.
   + move=> ix /andP [H H0]; case: (boolP (i' < ix < j'.-1)) => [/Hpart // | H1].
-    rewrite ffunE permE /= (out_perm Hp) ?inE ?fin_decodeK //
-            -(inj_tperm _ _ _ (@fin_decode_inj _)).
+    rewrite ffunE permE /= (out_perm Hp) ?inE ?fin_decodeK //.
+    rewrite -(inj_tperm _ _ _ fin_decode_inj).
     move: (Hj'1 (ltnidx_rp (ltnm0m Hij'))) (Hi'1 (ltnidx_l (ltnW Hij')))
           (Hi'2 ix) (Hj'2 ix); case: tpermP; ssromega.
 - rewrite leq_eqVlt ltnS -{2}(perm_ffunE1 arr) => Hij'; constructor;
@@ -197,11 +197,11 @@ Definition quicksort_rec :
           | true => fun Hij : i.+1 < j =>
             let i' := ltnidx_l (ltnW Hij) in
             let si := ltnidx_ls (ltnW Hij) in
-            mlet pivot := astate_GET i' in
+            mlet pivot : A := astate_GET i' in
             mlet '(exist k Hk) := @partition pivot si j (ltnW Hij) in
             let Hk' : 0 < k := ltac:(by case/andP: Hk => /ltnm0m) in
             let pk := ltnidx_rp (j := k) Hk' in
-            mlet x := astate_GET pk in
+            mlet x : A := astate_GET pk in
             astate_SET i' x;; astate_SET pk pivot;;
             recr (ord_pred' (i := k) Hk')
                  ltac:(by case/andP: (Hk); rewrite /= (ltn_predK Hk'));;
@@ -210,7 +210,7 @@ Definition quicksort_rec :
         end (erefl (i.+1 < j)))).
 
 Definition quicksort : AState {ffun I -> A} unit :=
-  quicksort_rec ord0 (@Ordinal #|I|.+1 $|I| ltac:(by rewrite cardT')).
+  quicksort_rec ord0 (@Ordinal #|I|.+1 $|I| ltac:(by rewrite raw_cardE)).
 
 Variant quicksort_rec_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   unit * {ffun I -> A} -> Prop :=
@@ -251,12 +251,13 @@ case: {2 3}(i.+1 < j) (erefl (i.+1 < j)) => [| /negbT];
 case: (run_partition _ (i := ltnidx_ls (ltnW Hij))) => /= pp k Hk...
 set ix_pivot := ltnidx_l (ltnW Hij).
 set ix_part := ltnidx_rp _.
-set arr' := ffun_set _ _ _.
+set arr' := dffun_set _ _ _.
 move=> Hpp Hpart.
 have {arr'} ->:
-  arr' = perm_ffun (tperm (fin_decode ix_part) (fin_decode ix_pivot) * pp) arr
-  by apply/ffunP => ix; rewrite !ffunE permM permE /=;
-     do !case: eqP => // _; rewrite (out_perm Hpp) // inE fin_decodeK; ssromega.
+  arr' = perm_ffun (tperm (fin_decode ix_part) (fin_decode ix_pivot) * pp) arr.
+  apply/ffunP => ix; rewrite !ffun_setE !ffunE permM permE /=.
+  do !case: eqP => // ?; rewrite (out_perm Hpp) ?inE; try congruence.
+  rewrite fin_decodeK; ssromega.
 case: {IHj} (IHj (ord_pred' _)); first by ssromega.
 rewrite /= /predn' => /= pl Hpl Hsortl.
 case: IHi => [| pr arr' Hpr]; first by case/andP: (Hk).
@@ -274,9 +275,9 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
   move: (perm_closed (fin_decode ix) Hpl) (perm_closed (fin_decode ix') Hpr);
     rewrite !inE !fin_decodeK => H4 H5.
   rewrite (out_perm (x := pr _) Hpl); last by rewrite !inE; ssromega.
-  apply Hcmp_trans with (arr (fin_decode ix_pivot)); first apply: Hcmp_asym;
-    rewrite -(fin_encodeK (tperm _ _ _)) -(ffunE (fun ix => arr (pp ix))) Hpart
-            (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
+  apply: (Hcmp_trans (y := arr (fin_decode ix_pivot)) (Hcmp_asym _));
+    rewrite -[tperm _ _ _]fin_encodeK -(ffunE (fun ix => arr (pp ix))) Hpart
+            (inj_tperm _ _ _ fin_encode_inj) !fin_decodeK;
     case: tpermP; ssromega.
 - move/ord_inj in H3; subst ix' => {H2}.
   rewrite !(out_perm Hpr, out_perm (x := _ ix_part) Hpl, tpermL,
@@ -285,14 +286,14 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
   move: (perm_closed (fin_decode ix) Hpl); rewrite !inE fin_decodeK /= => H2.
   apply: Hcmp_asym.
   rewrite -[X in pp X]fin_encodeK -(ffunE (fun ix => arr (pp ix))) Hpart
-          (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
+          (inj_tperm _ _ _ fin_encode_inj) !fin_decodeK;
     case: tpermP; ssromega.
 - move: (Hsortr ix ix'); rewrite !ffunE !permM; apply; ssromega.
 - move/ord_inj in H2; subst ix => {H3}.
   move: (perm_closed (fin_decode ix') Hpr); rewrite !inE !fin_decodeK => H2.
   rewrite (out_perm Hpr) ?(out_perm Hpl) ?tpermL 1?(out_perm Hpp);
     try by rewrite ?inE ?fin_decodeK; ssromega.
-  rewrite -(fin_encodeK (pr _)) -(inj_tperm _ _ _ (@fin_decode_inj _))
+  rewrite -(fin_encodeK (pr _)) -(inj_tperm _ _ _ fin_decode_inj)
           -(ffunE (fun ix => arr (pp ix))) tpermD ?Hpart; ssromega.
 Qed.
 
@@ -308,7 +309,7 @@ Lemma run_quicksort (arr : {ffun I -> A}) :
 Proof.
 rewrite /quicksort.
 set j := Ordinal _.
-have ->: j = ord_max by apply/ord_inj => /=; rewrite cardT'.
+have ->: j = ord_max by apply/ord_inj => /=; rewrite raw_cardE.
 by case: run_quicksort_rec => p /= Hp Hsort; constructor=> *; apply: Hsort.
 Qed.
 

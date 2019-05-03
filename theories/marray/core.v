@@ -10,8 +10,8 @@ Unset Printing Implicit Defensive.
 
 (* copyType: provides a method for deep copying of states. *)
 
-Definition ffun_copy
-           (I : finType) (T : Type) (f : {ffun I -> T}) : {ffun I -> T} := f.
+Definition ffun_copy (I : finType) (T : I -> Type) (f : {ffun forall x, T x}) :
+  {ffun forall x, T x} := f.
 
 Module Type CopyableMixinSig.
 
@@ -19,7 +19,8 @@ Parameters
   (mixin_of : Type -> Type)
   (copy : forall (T : Type), mixin_of T -> T -> T)
   (copyE : forall (T : Type) (C : mixin_of T) (x : T), copy C x = x)
-  (ffun_mixin : forall (I : finType) (T : Type), mixin_of {ffun I -> T})
+  (ffun_mixin :
+     forall (I : finType) (T : I -> Type), mixin_of {ffun forall x, T x})
   (prod_mixin :
      forall (T1 T2 : Type) (C1 : mixin_of T1) (C2 : mixin_of T2),
        mixin_of (T1 * T2)).
@@ -37,8 +38,9 @@ Definition copy (T : Type) (m : mixin_of T) :=
 Lemma copyE (T : Type) (C : mixin_of T) (x : T) : copy C x = x.
 Proof. by case: C => /= copy ->. Qed.
 
-Definition ffun_mixin (I : finType) (T : Type) : mixin_of {ffun I -> T} :=
-  @Mixin _ (@ffun_copy I T) (fun _ => erefl).
+Definition ffun_mixin (I : finType) (T : I -> Type) :
+  mixin_of {ffun forall x, T x} :=
+  @Mixin _ (@ffun_copy _ _) (fun _ => erefl).
 
 Lemma prod_mixin_subproof
       (T1 T2 : Type) (C1 : mixin_of T1) (C2 : mixin_of T2) (x : T1 * T2) :
@@ -53,8 +55,10 @@ Definition prod_mixin (T1 T2 : Type) (C1 : mixin_of T1) (C2 : mixin_of T2) :
 End CopyableMixin.
 
 Module Copyable.
+Section Copyable.
 
 Structure type : Type := Pack {sort; _ : CopyableMixin.mixin_of sort }.
+Local Coercion sort : type >-> Sortclass.
 
 Section ClassDef.
 Variable (T : Type) (cT : type).
@@ -66,45 +70,58 @@ Definition clone := fun c & sort cT -> T & phant_id (pack c) cT => pack c.
 
 End ClassDef.
 
+Definition finfun_copyType (I : finType) (T : I -> Type) : type :=
+  @Pack {ffun forall x, T x} (CopyableMixin.ffun_mixin T).
+
+Definition prod_copyType (T1 T2 : type) : type :=
+  @Pack (T1 * T2)
+        (CopyableMixin.prod_mixin (class T1) (class T2)).
+
+End Copyable.
+
 Module Exports.
 Coercion sort : type >-> Sortclass.
+Canonical finfun_copyType.
+Canonical prod_copyType.
 Notation copyType := type.
 Notation "[ 'copyMixin' 'of' T ]" :=
   (class _ : CopyableMixin.mixin_of T)
     (at level 0, format "[ 'copyMixin' 'of' T ]") : form_scope.
 Notation "[ 'copyType' 'of' T ]" :=
   (@clone T _ _ idfun id).
-End Exports.
 
-End Copyable.
-
-Export Copyable.Exports.
-
-Definition copy (T : copyType) : T -> T :=
+Definition copy (T : type) : T -> T :=
   CopyableMixin.copy (Copyable.class T).
 
 Lemma copyE (T : copyType) (x : T) : copy x = x.
 Proof.
 by rewrite /copy; case: T x => /= T m x; rewrite CopyableMixin.copyE.
 Qed.
+End Exports.
 
-Canonical finfun_copyType (I : finType) (T : Type) : copyType :=
-  @Copyable.Pack {ffun I -> T} (CopyableMixin.ffun_mixin I T).
+End Copyable.
 
-Canonical prod_copyType (T1 T2 : copyType) : copyType :=
-  @Copyable.Pack
-    (T1 * T2)
-    (CopyableMixin.prod_mixin (Copyable.class T1) (Copyable.class T2)).
+Export Copyable.Exports.
 
 (* Array state monad *)
 
-Definition ffun_set
-           (I : finType) (T : Type) (i : I) (x : T) (f : {ffun I -> T}) :=
-  [ffun j => if j == i then x else f j].
+Definition dffun_set (I : finType) (T : I -> Type)
+           (i : I) (x : T i) (f : {ffun forall x, T x}) : {ffun forall x, T x} :=
+  [ffun j => if j =P i is ReflectT hji then ecast i (T i) (esym hji) x else f j].
 
-Lemma subst_id (I : finType) (T : Type) (i : I) (x : T) (f : {ffun I -> T}) :
-  x = f i -> ffun_set i x f = f.
-Proof. by move->; apply/ffunP => j; rewrite ffunE; case: eqP => // ->. Qed.
+Arguments dffun_set {I T} i x f.
+
+Lemma subst_id (I : finType) (T : I -> Type)
+      (i : I) (x : T i) (f : {ffun forall x, T x}) :
+  x = f i -> dffun_set i x f = f.
+Proof.
+move->; apply/ffunP => j; rewrite ffunE.
+by case: eqP => // p; case: j / {p} (esym _).
+Qed.
+
+Lemma ffun_setE (I : finType) T i j x (f : {ffun I -> T}) :
+  dffun_set i x f j = if j == i then x else f j.
+Proof. by rewrite ffunE; case: eqP => // p; case: j / {p} (esym _). Qed.
 
 (*
 Module Type AStateSig.
@@ -151,9 +168,11 @@ Inductive AState : Type -> Type -> Type :=
   | astate_bind_ (S A B : Type) : AState S A -> (A -> AState S B) -> AState S B
   | astate_frameL_ (Sl Sr A : Type) : AState Sl A -> AState (Sl * Sr) A
   | astate_frameR_ (Sl Sr A : Type) : AState Sr A -> AState (Sl * Sr) A
-  | astate_GET_ (I : finType) (T : Type) : 'I_#|I| -> AState {ffun I -> T} T
-  | astate_SET_ (I : finType) (T : Type) :
-      'I_#|I| -> T -> AState {ffun I -> T} unit.
+  | astate_GET_ (I : finType) (T : I -> Type) (i : 'I_#|I|) :
+      AState {ffun forall x, T x} (T (fin_decode i))
+  | astate_SET_ (I : finType) (T : I -> Type)
+                (i : 'I_#|I|) (x : T (fin_decode i)) :
+      AState {ffun forall x, T x} unit.
 
 Definition astate_ret {S A} a := @astate_ret_ S A a.
 Definition astate_bind {S A B} := @astate_bind_ S A B.
@@ -161,8 +180,14 @@ Definition astate_frameL {Sl Sr A} := @astate_frameL_ Sl Sr A.
 Definition astate_frameR {Sl Sr A} := @astate_frameR_ Sl Sr A.
 Definition astate_GET {I T} := @astate_GET_ I T.
 Definition astate_SET {I T} := @astate_SET_ I T.
-Notation astate_get i := (astate_GET (fin_encode i)).
-Notation astate_set i x := (astate_SET (fin_encode i) x).
+Definition astate_get {I : finType} {T : I -> Type} (i : I) :
+  AState {ffun forall x, T x} (T i) :=
+  ecast i (AState _ (T i)) (fin_encodeK _) (astate_GET (fin_encode i)).
+Definition astate_set {I : finType} {T : I -> Type} (i : I) (x : T i) :
+  AState {ffun forall x, T x} unit :=
+  astate_SET (i := fin_encode i) (ecast i (T i) (esym (fin_encodeK _)) x).
+Arguments astate_SET {I T} i x.
+Arguments astate_set {I T} i x.
 
 Definition run_AState_raw : forall S A, AState S A -> S -> A * S :=
   @AState_rect (fun S A _ => S -> A * S)
@@ -173,7 +198,7 @@ Definition run_AState_raw : forall S A, AState S A -> S -> A * S :=
   (* frameR *) (fun _ _ _ _ f '(sl, sr) =>
                   let (a, sr') := f sr in (a, (sl, sr')))
   (* GET *)    (fun _ _ i s => (s (fin_decode i), s))
-  (* SET *)    (fun _ _ i x s => (tt, ffun_set (fin_decode i) x s)).
+  (* SET *)    (fun _ _ i x s => (tt, dffun_set (fin_decode i) x s)).
 
 Definition run_AState
            (S : copyType) (A : Type) (m : AState S A) (s : S) : A * S :=
@@ -206,24 +231,45 @@ Lemma run_AStateE_frameR
 Proof. by case: s => sl sr; rewrite /run_AState /= !copyE. Qed.
 
 Lemma run_AStateE_GET
-      (I : finType) (T : Type) (s : {ffun I -> T}) (i : 'I_#|I|) :
+      (I : finType) (T : I -> Type) (s : {ffun forall x, T x}) (i : 'I_#|I|) :
   run_AState (astate_GET i) s = (s (fin_decode i), s).
 Proof. by rewrite /run_AState /= copyE. Qed.
 
 Lemma run_AStateE_SET
-      (I : finType) (T : Type) (s : {ffun I -> T}) (i : 'I_#|I|) (x : T) :
-  run_AState (astate_SET i x) s = (tt, ffun_set (fin_decode i) x s).
+      (I : finType) (T : I -> Type) (s : {ffun forall x, T x})
+      (i : 'I_#|I|) (x : T (fin_decode i)) :
+  run_AState (astate_SET i x) s = (tt, dffun_set (fin_decode i) x s).
 Proof. by rewrite /run_AState /= copyE. Qed.
+
+Lemma run_AStateE_get
+      (I : finType) (T : I -> Type) (s : {ffun forall x, T x}) (i : I) :
+  run_AState (astate_get i) s = (s i, s).
+Proof.
+rewrite /astate_get; case:{1 2 5 6}i / (fin_encodeK i).
+by rewrite run_AStateE_GET.
+Qed.
+
+Lemma run_AStateE_set
+      (I : finType) (T : I -> Type)
+      (s : {ffun forall x, T x}) (i : I) (x : T i) :
+  run_AState (astate_set i x) s = (tt, dffun_set i x s).
+Proof.
+by rewrite /astate_set run_AStateE_SET; case:{1 4 5 6}i / (fin_encodeK i) x.
+Qed.
 
 Global Opaque run_AState run_AState_raw.
 
 Definition run_AStateE :=
-  ((fin_encodeK, (run_AStateE_ret, run_AStateE_bind)),
-   ((run_AStateE_frameL, run_AStateE_frameR),
-    (run_AStateE_GET, run_AStateE_SET))).
+  (@fin_encodeK,
+   (run_AStateE_ret, run_AStateE_bind),
+   (run_AStateE_frameL, run_AStateE_frameR),
+   (run_AStateE_GET, run_AStateE_SET, (run_AStateE_get, run_AStateE_set))).
 
 Notation "'mlet' x := y 'in' f" :=
   (astate_bind y (fun x => f))
+  (x ident, at level 65, right associativity).
+Notation "'mlet' x : T := y 'in' f" :=
+  (astate_bind y (fun x : T => f))
   (x ident, at level 65, right associativity).
 Notation "'mlet' ' x := y 'in' f" :=
   (astate_bind y (fun x => f))
@@ -278,7 +324,8 @@ case=> sl sr; rewrite !run_AStateE.
 by case: (run_AState a sr) => x sr'; rewrite !run_AStateE.
 Qed.
 
-Lemma set_return_unit (I : finType) T (i : 'I_#|I|) (x : T) :
+Lemma set_return_unit (I : finType) (T : I -> Type)
+      (i : 'I_#|I|) (x : T (fin_decode i)) :
   astate_SET i x  =m  astate_SET i x;; astate_ret tt.
 Proof. by move=> s; rewrite !run_AStateE. Qed.
 
@@ -310,9 +357,12 @@ move=> s; rewrite !run_AStateE; congr (_, _).
 by apply/ffunP => j; rewrite !ffunE; case: eqP.
 Qed.
 
-Lemma set_get_s (I : finType) T (i : 'I_#|I|) (x : T) :
+Lemma set_get_s (I : finType) T (i : 'I_#|I|) (x : T (fin_decode i)) :
   astate_SET i x;; astate_GET i =m astate_SET i x;; astate_ret x.
-Proof. by move=> s; rewrite !run_AStateE ffunE eqxx. Qed.
+Proof.
+move=> s; rewrite !run_AStateE ffunE.
+by case: eqP => //= p; rewrite (eq_irrelevance p erefl).
+Qed.
 
 Lemma get_get_d
       (I : finType) T A (i j : 'I_#|I|) (f : T -> T -> AState {ffun I -> T} A) :
@@ -324,9 +374,9 @@ Lemma set_set_d (I : finType) T (i j : 'I_#|I|) (x y : T) :
   i != j ->
   astate_SET i x;; astate_SET j y =m astate_SET j y;; astate_SET i x.
 Proof.
-move/eqP => H s; rewrite !run_AStateE; congr (_, _); apply/ffunP => k;
-  rewrite !ffunE -!(can_eq (@fin_encodeK I)) !fin_decodeK; do !case: eqP;
-  congruence.
+rewrite -(inj_eq fin_decode_inj).
+move/eqP=> hij s; rewrite !run_AStateE; congr (_, _); apply/ffunP => k.
+rewrite !ffunE; do! case: eqP; congruence.
 Qed.
 
 Lemma set_get_d (I : finType) T (i j : 'I_#|I|) (x : T) :
@@ -334,8 +384,9 @@ Lemma set_get_d (I : finType) T (i j : 'I_#|I|) (x : T) :
   astate_SET i x;; astate_GET j =m
   mlet y := astate_GET j in astate_SET i x;; astate_ret y.
 Proof.
-by move=> H s; rewrite !run_AStateE; congr (_, _);
-  rewrite !ffunE (can_eq (@fin_decodeK _)) eq_sym (negbTE H).
+move=> hij s; rewrite !run_AStateE; congr (_, _).
+rewrite !ffunE; case: eqP => // hij'.
+by move/fin_decode_inj: hij' hij (hij') => -> /eqP.
 Qed.
 
 End equational_theory.
@@ -479,29 +530,30 @@ Section Iteration_finType.
 Variable (T : finType) (A : Type).
 
 Definition iterate_fin (f : T -> A -> A) (x : A) : A :=
-  iterate_revord (fun i x => f (raw_fin_decode (rev_ord i)) x) x (leqnn $|T|).
+  iterate_revord (fun i x => f (Finite.decode (rev_ord i)) x) x (leqnn $|T|).
 
 Lemma iterate_fin_eq (f : T -> A -> A) (x : A) :
   iterate_fin f x = foldl (fun x => f ^~ x) x (enum T).
 Proof.
-by rewrite /iterate_fin iterate_revord_eq -(revK (enum T)) enumT unlock
-           ord_enumE foldl_rev -map_rev rev_enum_ord -map_comp foldr_map.
+rewrite /iterate_fin iterate_revord_eq -foldl_rev rev_enum_ord.
+rewrite [in LHS]enumT unlock /= raw_fin_decodeP !foldl_map.
+by elim: (ord_enum _) x => //= ?? ih ?; rewrite rev_ordK ih.
 Qed.
 
 Definition iterate_revfin (f : T -> A -> A) (x : A) : A :=
-  iterate_revord (fun i x => f (raw_fin_decode i) x) x (leqnn $|T|).
+  iterate_revord (fun i x => f (Finite.decode i) x) x (leqnn $|T|).
 
 Lemma iterate_revfin_eq (f : T -> A -> A) (x : A) :
   iterate_revfin f x = foldr f x (enum T).
 Proof.
-by rewrite /iterate_revfin iterate_revord_eq
-           enumT unlock ord_enumE [RHS]foldr_map.
+rewrite /iterate_revfin iterate_revord_eq raw_fin_decodeP foldr_map.
+by rewrite enumT unlock.
 Qed.
 
 Definition miterate_both
            (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
   AState S A :=
-  miterate_ord (fun i => g (cast_ord (esym (cardT' _)) i) (raw_fin_decode i)) x.
+  miterate_ord (fun i => g (cast_ord (raw_cardE _) i) (Finite.decode i)) x.
 
 (*
 Definition miterate_both'
@@ -509,7 +561,7 @@ Definition miterate_both'
   AState S A :=
   miterate_revord
     (fun i => let i' := rev_ord i in
-              g (cast_ord (esym (cardT' _)) i') (raw_fin_decode i'))
+              g (cast_ord (raw_cardE _) i') (Finite.decode i'))
     x (leqnn $|T|).
 
 Goal miterate_both = miterate_both'.
@@ -521,10 +573,9 @@ Lemma run_miterate_both
   run_AState (miterate_both g x) s =
   foldl (fun '(x, s) i => run_AState (g (fin_encode i) i x) s) (x, s) (enum T).
 Proof.
-rewrite run_miterate_ord enumT (unlock finEnum_unlock) ord_enumE
-        [RHS]foldl_map.
-elim: (enum _) {x s} (x, s) => //= o os IH [x s]; rewrite -IH.
-by rewrite (unlock fin_encode_unlock) raw_fin_decodeK.
+rewrite run_miterate_ord raw_fin_decodeP foldl_map enumT [Finite.enum]unlock /=.
+elim: (ord_enum _) {x s} (x, s) => //= o os IH [x s].
+by rewrite -IH [@fin_encode]unlock raw_fin_decodeK.
 Qed.
 
 Definition miterate_fin
@@ -541,7 +592,7 @@ Definition miterate_revboth
            (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
   AState S A :=
   miterate_revord
-    (fun i => g (cast_ord (esym (cardT' _)) i) (raw_fin_decode i))
+    (fun i => g (cast_ord (raw_cardE _) i) (Finite.decode i))
     x (leqnn $|T|).
 
 Lemma run_miterate_revboth
@@ -549,10 +600,9 @@ Lemma run_miterate_revboth
   run_AState (miterate_revboth g x) s =
   foldr (fun i '(x, s) => run_AState (g (fin_encode i) i x) s) (x, s) (enum T).
 Proof.
-rewrite run_miterate_revord enumT (unlock finEnum_unlock) ord_enumE
-        [RHS]foldr_map.
-by elim: (enum _) => //= o os <-;
-  rewrite (unlock fin_encode_unlock) raw_fin_decodeK.
+rewrite run_miterate_revord raw_fin_decodeP foldr_map enumT [Finite.enum]unlock.
+move=> /=; elim: (ord_enum _) => //= ?? <-.
+by rewrite [@fin_encode]unlock raw_fin_decodeK.
 Qed.
 
 Definition miterate_revfin
@@ -567,15 +617,14 @@ Proof. by rewrite run_miterate_revboth. Qed.
 
 Definition miterate_revfin'
            (S : copyType) (g : T -> AState S unit) : AState S unit :=
-  miterate_revord' (fun i => g (raw_fin_decode i)) (leqnn $|T|).
+  miterate_revord' (fun i => g (Finite.decode i)) (leqnn $|T|).
 
 Lemma run_miterate_revfin'
       (S : copyType) (g : T -> AState S unit) (s : S) :
   run_AState (miterate_revfin' g) s =
   (tt, foldr (fun i s => (run_AState (g i) s).2) s (enum T)).
 Proof.
-by rewrite run_miterate_revord' enumT unlock ord_enumE
-           [X in _ = (_, X)]foldr_map.
+by rewrite run_miterate_revord' raw_fin_decodeP foldr_map enumT unlock.
 Qed.
 
 End Iteration_finType.
@@ -597,8 +646,8 @@ Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
 
 Definition SWAP (I : finType) {A : Type} (i j : 'I_#|I|) :
   AState {ffun I -> A} unit :=
-  mlet x := astate_GET i in
-  mlet y := astate_GET j in
+  mlet x : A := astate_GET i in
+  mlet y : A := astate_GET j in
   astate_SET i y;; astate_SET j x.
 
 Lemma run_SWAP (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
@@ -608,11 +657,11 @@ Proof.
 rewrite !run_AStateE.
 congr pair.
 apply/ffunP => k.
-rewrite !ffunE.
-rewrite permE /=; do!case: eqP; congruence.
+rewrite !ffun_setE ffunE.
+rewrite permE /=; do!case: eqP; try congruence.
 Restart.
 rewrite !run_AStateE; congr pair; apply/ffunP => k.
-rewrite !ffunE permE /=; do !case: eqP; congruence.
+rewrite !ffun_setE ffunE permE /=; do !case: eqP; congruence.
 Qed.
 
 Definition swap (I : finType) {A : Type} (i j : I) :
