@@ -508,7 +508,7 @@ Lemma run_mfind x :
 Proof.
 case/connectP: (connect_find g x) => xs Hxs H.
 have Hrepr: repr g (last x xs) by rewrite -H; apply Hg.
-rewrite H /mfind -cardT' (@run_mfind_rec #|T| x xs) //
+rewrite H /mfind raw_cardE (@run_mfind_rec #|T| x xs) //
         ?(path_size (Hg _) Hxs) //.
 congr (_, _, _); apply/ffunP => y; rewrite !ffunE H /connect fconnect_orbit.
 congr (if (_ \in _) && _ then _ else _).

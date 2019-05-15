@@ -210,7 +210,7 @@ Definition quicksort_rec :
         end (erefl (i.+1 < j)))).
 
 Definition quicksort : AState {ffun I -> A} unit :=
-  quicksort_rec ord0 (@Ordinal #|I|.+1 $|I| ltac:(by rewrite cardT')).
+  quicksort_rec ord0 (@Ordinal #|I|.+1 $|I| ltac:(by rewrite raw_cardE)).
 
 Variant quicksort_rec_spec (i j : 'I_#|I|.+1) (arr : {ffun I -> A}) :
   unit * {ffun I -> A} -> Prop :=
@@ -308,7 +308,7 @@ Lemma run_quicksort (arr : {ffun I -> A}) :
 Proof.
 rewrite /quicksort.
 set j := Ordinal _.
-have ->: j = ord_max by apply/ord_inj => /=; rewrite cardT'.
+have ->: j = ord_max by apply/ord_inj => /=; rewrite raw_cardE.
 by case: run_quicksort_rec => p /= Hp Hsort; constructor=> *; apply: Hsort.
 Qed.
 

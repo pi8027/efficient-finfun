@@ -218,7 +218,7 @@ Proof. by rewrite /run_AState /= copyE. Qed.
 Global Opaque run_AState run_AState_raw.
 
 Definition run_AStateE :=
-  ((fin_encodeK, (run_AStateE_ret, run_AStateE_bind)),
+  ((@fin_encodeK, (run_AStateE_ret, run_AStateE_bind)),
    ((run_AStateE_frameL, run_AStateE_frameR),
     (run_AStateE_GET, run_AStateE_SET))).
 
@@ -479,29 +479,30 @@ Section Iteration_finType.
 Variable (T : finType) (A : Type).
 
 Definition iterate_fin (f : T -> A -> A) (x : A) : A :=
-  iterate_revord (fun i x => f (raw_fin_decode (rev_ord i)) x) x (leqnn $|T|).
+  iterate_revord (fun i x => f (Finite.decode (rev_ord i)) x) x (leqnn $|T|).
 
 Lemma iterate_fin_eq (f : T -> A -> A) (x : A) :
   iterate_fin f x = foldl (fun x => f ^~ x) x (enum T).
 Proof.
-by rewrite /iterate_fin iterate_revord_eq -(revK (enum T)) enumT unlock
-           ord_enumE foldl_rev -map_rev rev_enum_ord -map_comp foldr_map.
+rewrite /iterate_fin iterate_revord_eq -foldl_rev rev_enum_ord.
+rewrite [in LHS]enumT unlock /= raw_fin_decodeP !foldl_map.
+by elim: (ord_enum _) x => //= ?? ih ?; rewrite rev_ordK ih.
 Qed.
 
 Definition iterate_revfin (f : T -> A -> A) (x : A) : A :=
-  iterate_revord (fun i x => f (raw_fin_decode i) x) x (leqnn $|T|).
+  iterate_revord (fun i x => f (Finite.decode i) x) x (leqnn $|T|).
 
 Lemma iterate_revfin_eq (f : T -> A -> A) (x : A) :
   iterate_revfin f x = foldr f x (enum T).
 Proof.
-by rewrite /iterate_revfin iterate_revord_eq
-           enumT unlock ord_enumE [RHS]foldr_map.
+rewrite /iterate_revfin iterate_revord_eq raw_fin_decodeP foldr_map.
+by rewrite enumT unlock.
 Qed.
 
 Definition miterate_both
            (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
   AState S A :=
-  miterate_ord (fun i => g (cast_ord (esym (cardT' _)) i) (raw_fin_decode i)) x.
+  miterate_ord (fun i => g (cast_ord (raw_cardE _) i) (Finite.decode i)) x.
 
 (*
 Definition miterate_both'
@@ -521,10 +522,9 @@ Lemma run_miterate_both
   run_AState (miterate_both g x) s =
   foldl (fun '(x, s) i => run_AState (g (fin_encode i) i x) s) (x, s) (enum T).
 Proof.
-rewrite run_miterate_ord enumT (unlock finEnum_unlock) ord_enumE
-        [RHS]foldl_map.
-elim: (enum _) {x s} (x, s) => //= o os IH [x s]; rewrite -IH.
-by rewrite (unlock fin_encode_unlock) raw_fin_decodeK.
+rewrite run_miterate_ord raw_fin_decodeP foldl_map enumT [Finite.enum]unlock /=.
+elim: (ord_enum _) {x s} (x, s) => //= o os IH [x s].
+by rewrite -IH [@fin_encode]unlock raw_fin_decodeK.
 Qed.
 
 Definition miterate_fin
@@ -541,7 +541,7 @@ Definition miterate_revboth
            (S : Type) (g : 'I_#|T| -> T -> A -> AState S A) (x : A) :
   AState S A :=
   miterate_revord
-    (fun i => g (cast_ord (esym (cardT' _)) i) (raw_fin_decode i))
+    (fun i => g (cast_ord (raw_cardE _) i) (Finite.decode i))
     x (leqnn $|T|).
 
 Lemma run_miterate_revboth
@@ -549,10 +549,9 @@ Lemma run_miterate_revboth
   run_AState (miterate_revboth g x) s =
   foldr (fun i '(x, s) => run_AState (g (fin_encode i) i x) s) (x, s) (enum T).
 Proof.
-rewrite run_miterate_revord enumT (unlock finEnum_unlock) ord_enumE
-        [RHS]foldr_map.
-by elim: (enum _) => //= o os <-;
-  rewrite (unlock fin_encode_unlock) raw_fin_decodeK.
+rewrite run_miterate_revord raw_fin_decodeP foldr_map enumT [Finite.enum]unlock.
+move=> /=; elim: (ord_enum _) => //= ?? <-.
+by rewrite [@fin_encode]unlock raw_fin_decodeK.
 Qed.
 
 Definition miterate_revfin
@@ -567,15 +566,14 @@ Proof. by rewrite run_miterate_revboth. Qed.
 
 Definition miterate_revfin'
            (S : copyType) (g : T -> AState S unit) : AState S unit :=
-  miterate_revord' (fun i => g (raw_fin_decode i)) (leqnn $|T|).
+  miterate_revord' (fun i => g (Finite.decode i)) (leqnn $|T|).
 
 Lemma run_miterate_revfin'
       (S : copyType) (g : T -> AState S unit) (s : S) :
   run_AState (miterate_revfin' g) s =
   (tt, foldr (fun i s => (run_AState (g i) s).2) s (enum T)).
 Proof.
-by rewrite run_miterate_revord' enumT unlock ord_enumE
-           [X in _ = (_, X)]foldr_map.
+by rewrite run_miterate_revord' raw_fin_decodeP foldr_map enumT unlock.
 Qed.
 
 End Iteration_finType.

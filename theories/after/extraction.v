@@ -17,9 +17,10 @@ Extraction Inline
 
 Extraction Inline
   fin_encode fin_decode
-  Finite.mixin_base Finite.mixin_card Finite.mixin_encode Finite.mixin_decode
+  Finite.mixin_base Finite.mixin_card Finite.mixin_enc Finite.mixin_dec
   Finite.base Finite.mixin Finite.base2 Finite.class Finite.clone
-  Finite.eqType Finite.choiceType Finite.countType Finite.raw_card
+  Finite.EnumDef.enum Finite.card Finite.encode Finite.decode
+  Finite.eqType Finite.choiceType Finite.countType
   prod_fin_encode prod_fin_decode finfun_fin_encode finfun_fin_decode.
 
 (* automata *)
@@ -34,7 +35,7 @@ Extraction Inline
 (* avoiding extractor bugs: type mismatch, assertion failure, etc. *)
 
 Extract Constant SetDef.pred_of_set =>
-  "(Obj.magic (fun t a x -> tnth a (t.Finite.mixin.Finite.mixin_encode x)))".
+  "(Obj.magic (fun t a x -> tnth a (t.Finite.mixin.Finite.mixin_enc x)))".
 
 (* matrix *)
 
@@ -48,7 +49,7 @@ Definition finfun_app_test (n : nat) :=
 
 (******************************************************************************)
 
-Extraction Language Ocaml.
+Extraction Language OCaml.
 Set Extraction Flag 8175.
 
 Extraction "../../ocaml/matrix_after.ml" matrix_mult_test finfun_app_test.

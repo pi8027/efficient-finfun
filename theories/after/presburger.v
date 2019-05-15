@@ -146,7 +146,7 @@ by apply/val_inj; rewrite /= {1}(addrC i j) addrAC subrK.
 Qed.
 
 Definition range_finMixin :=
-  Eval hnf in BijOrdMixin range_fin_encodeK range_fin_decodeK.
+  Eval hnf in BijFinMixin range_fin_encodeK range_fin_decodeK.
 Canonical range_finType := Eval hnf in FinType range range_finMixin.
 Canonical range_subFinType := Eval hnf in [subFinType of range].
 
@@ -166,7 +166,7 @@ Definition reachable' p q := q \in enum_reachable p.
 Lemma reachable'P (p q : A) :
   reflect (exists w, q = delta p w) (reachable' p q).
 Proof.
-rewrite /reachable' /enum_reachable -cardT'; apply (iffP dfsP).
+rewrite /reachable' /enum_reachable raw_cardE; apply (iffP dfsP).
 - case=> qs H -> {q}; elim: qs p H => //=.
   + by move=> p _; exists [::].
   + move=> q qs IH p /andP [] /mapP [] x H -> {q} /IH {IH} [xs H0].
@@ -501,7 +501,7 @@ Lemma exists_nfa_finP q :
                         assign_of_word w = cons_tuple x0 [ffun => 0])
           (exists_nfa_fin q).
 Proof.
-rewrite /exists_nfa_fin -cardT'; apply (iffP hasP).
+rewrite /exists_nfa_fin raw_cardE; apply (iffP hasP).
 - move=> [q'] /dfsP [qs H ->] {q'}; elim: qs q H => /=.
   + by move=> q _ H; exists 0, [::];
       rewrite delta_accept cons_tuple_const; split.

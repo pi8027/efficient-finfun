@@ -45,7 +45,7 @@ Definition finfun_app_test (n : nat) :=
 
 (******************************************************************************)
 
-Extraction Language Ocaml.
+Extraction Language OCaml.
 Set Extraction Flag 2031.
 
 Extraction "../../ocaml/matrix_before.ml" matrix_mult_test finfun_app_test.
