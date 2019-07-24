@@ -593,14 +593,14 @@ Lemma perm_ffunEM
   perm_ffun (p * p') f = perm_ffun p (perm_ffun p' f).
 Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
 
-Definition SWAP (I : finType) {A : Type} (i j : 'I_#|I|) :
+Definition oswap (I : finType) {A : Type} (i j : 'I_#|I|) :
   AState {ffun I -> A} unit :=
   mlet x := astate_GET i in
   mlet y := astate_GET j in
   astate_SET i y;; astate_SET j x.
 
-Lemma run_SWAP (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
-  run_AState (SWAP i j) f =
+Lemma run_oswap (I : finType) (A : Type) (i j : 'I_#|I|) (f : {ffun I -> A}) :
+  run_AState (oswap i j) f =
   (tt, perm_ffun (tperm (fin_decode i) (fin_decode j)) f).
 Proof.
 rewrite !run_AStateE.
@@ -615,10 +615,10 @@ Qed.
 
 Definition swap (I : finType) {A : Type} (i j : I) :
   AState {ffun I -> A} unit :=
-  SWAP (fin_encode i) (fin_encode j).
+  oswap (fin_encode i) (fin_encode j).
 
 Lemma run_swap (I : finType) (A : Type) (i j : I) (f : {ffun I -> A}) :
   run_AState (swap i j) f = (tt, perm_ffun (tperm i j) f).
-Proof. by rewrite run_SWAP !fin_encodeK. Qed.
+Proof. by rewrite run_oswap !fin_encodeK. Qed.
 
-Global Opaque SWAP swap.
+Global Opaque oswap swap.

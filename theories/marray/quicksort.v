@@ -125,7 +125,7 @@ Definition partition (pivot : A) :
          down_search (xpredC (cmp pivot)) (i := j) (j := i) Hij in
        match i'.+1 < j' as cij return i'.+1 < j' = cij -> _ with
          | true => fun Hij : i'.+1 < j' =>
-           SWAP (ltnidx_l (ltnW Hij)) (ltnidx_rp (ltnm0m Hij));;
+           oswap (ltnidx_l (ltnW Hij)) (ltnidx_rp (ltnm0m Hij));;
            mlet '(exist k Hk) :=
              rec (ltnidx_ls (ltnW Hij))
                  ltac: (by case/andP: Hi; rewrite ltnS)
@@ -158,7 +158,7 @@ elim/Acc_rect: i / (well_founded_ordgt i) (well_founded_ordgt i) j Hij arr
 case: run_up_search => i' Hi'0 Hi'1 Hi'2...
 case: run_down_search => j' Hj'0 Hj'1 Hj'2...
 case: {2 3}(i'.+1 < j') (erefl (i'.+1 < j')) => [Hij' | /negbT];
-  rewrite -?leqNgt !(run_SWAP, run_AStateE).
+  rewrite -?leqNgt !(run_oswap, run_AStateE).
 - case: {IH} (IH (ltnidx_ls _) _ _ (ord_pred' _)); first ssromega;
     move=> p k Hk arr' /=...
   have {arr'} ->:

@@ -72,7 +72,7 @@ Extract Inlined Constant run_AState_raw =>
 
 Extraction Inline
   run_AState
-  SWAP swap
+  oswap swap
   iterate_revord iterate_fin iterate_revfin
   miterate_revord miterate_ord miterate_revord'
   miterate_revboth miterate_both

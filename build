@@ -36,7 +36,7 @@ puterr(){
 
 #### Proof Scripts
 
-foreach dir (theories/before theories/after theories/misc theories/marray)
+foreach dir (theories/before theories/after theories/marray theories/misc)
 pushd $dir
 
   envset $dir
