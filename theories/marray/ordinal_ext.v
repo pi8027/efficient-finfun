@@ -259,20 +259,14 @@ move=> i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
 by rewrite ltnS => H; constructor=> j H0; apply IH, (leq_trans H0).
 Qed.
 
-Definition lshift' (m n : nat) (i : 'I_n) : 'I_(m + n) :=
-  @Ordinal (m + n) i (leq_trans (ltn_ord i) (leq_addl m n)).
-
-Definition rshift' (m n : nat) (i : 'I_m) : 'I_(m + n) :=
-  @Ordinal (m + n) (n + i) ltac:(by rewrite addnC ltn_add2r ltn_ord).
-
-Definition ltnidx_l (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
+Definition idx_of_iter (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
   @Ordinal n i (leq_trans H (ltn_ord j)).
 
-Definition ltnidx_ls (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n.+1 :=
-  @Ordinal n.+1 i.+1 (leq_trans H (ltn_ord j)).
-
-Definition ltnidx_rp (n : nat) (j : 'I_n.+1) (H : 0 < j) : 'I_n :=
+Definition idx_of_pred_iter (n : nat) (j : 'I_n.+1) (H : 0 < j) : 'I_n :=
   @Ordinal n (@predn' j H) ltac:(by case: j H => -[]).
+
+Definition ord_leq (n i : nat) (j : 'I_n) (H : i <= j) : 'I_n :=
+  @Ordinal n i (leq_ltn_trans H (ltn_ord j)).
 
 Definition ord_pred (n : nat) (i : 'I_n) : 'I_n :=
   @Ordinal n i.-1 ltac:(by case: i => -[] //= i /ltnW).

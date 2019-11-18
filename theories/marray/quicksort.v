@@ -16,11 +16,11 @@ Definition up_search (i j : 'I_#|I|.+1) :
     (fun (i : 'I_#|I|.+1) rec (H : i <= j) =>
        match i < j as cij return (i < j) = cij -> _ with
          | true => fun H' : i < j =>
-           mlet x := astate_GET (ltnidx_l H') in
+           mlet x := astate_GET (idx_of_iter H') in
            if f x
            then astate_ret (exist (fun k : 'I_ _ => i <= k <= j) i
                   ltac:(by rewrite /= leqnn H))
-           else mlet '(exist k Hk) := rec (ltnidx_ls H') (leqnn _) H' in
+           else mlet '(exist k Hk) := rec (ord_leq H') (leqnn _) H' in
                 astate_ret (exist (fun k : 'I_ _ => i <= k <= j) k
                   ltac:(by case/andP: Hk => /ltnW ->))
          | false => fun _ =>
@@ -45,7 +45,7 @@ elim/Acc_rect: i / (well_founded_ordgt i) (well_founded_ordgt i) Hij
 case: {2 3}(i < j) (erefl (i < j)) => H; rewrite !run_AStateE;
   first case: ifP => H0; rewrite ?run_AStateE.
 - constructor=> [k' H1 H2 |]; first congr (f (arr (_ _))): H0; ssromega.
-- case: {IH Hi} (IH (ltnidx_ls H)) => //= k /andP [] H1 H2 H3 H4;
+- case: {IH Hi} (IH (ord_leq H)) => //= k /andP [] H1 H2 H3 H4;
     rewrite !run_AStateE; constructor=> // i';
     rewrite leq_eqVlt andb_orl => /orP [] H5; auto;
     congr (~~ (f (arr (_ _)))): (negbT H0); ssromega.
@@ -60,7 +60,7 @@ Definition down_search (i j : 'I_#|I|.+1) :
     (fun (i : 'I_#|I|.+1) rec (H : j <= i) =>
        (if j < i as cij return (j < i) = cij -> _
         then fun H' : j < i =>
-               mlet x := astate_GET (ltnidx_rp (ltnm0m H')) in
+               mlet x := astate_GET (idx_of_pred_iter (ltnm0m H')) in
                if f x
                then astate_ret (exist (fun k : 'I_ _ => j <= k <= i) i
                                       ltac:(by rewrite /= H leqnn))
@@ -125,9 +125,9 @@ Definition partition (pivot : A) :
          down_search (xpredC (cmp pivot)) (i := j) (j := i) Hij in
        match i'.+1 < j' as cij return i'.+1 < j' = cij -> _ with
          | true => fun Hij : i'.+1 < j' =>
-           oswap (ltnidx_l (ltnW Hij)) (ltnidx_rp (ltnm0m Hij));;
+           oswap (idx_of_iter (ltnW Hij)) (idx_of_pred_iter (ltnm0m Hij));;
            mlet '(exist k Hk) :=
-             rec (ltnidx_ls (ltnW Hij))
+             rec (ord_leq (ltnW Hij))
                  ltac: (by case/andP: Hi; rewrite ltnS)
                  (ord_pred' (i := j') (ltnm0m Hij))
                  ltac: (by case: (j') Hij => -[]) in
@@ -159,12 +159,12 @@ case: run_up_search => i' Hi'0 Hi'1 Hi'2...
 case: run_down_search => j' Hj'0 Hj'1 Hj'2...
 case: {2 3}(i'.+1 < j') (erefl (i'.+1 < j')) => [Hij' | /negbT];
   rewrite -?leqNgt !(run_oswap, run_AStateE).
-- case: {IH} (IH (ltnidx_ls _) _ _ (ord_pred' _)); first ssromega;
+- case: {IH} (IH (ord_leq _) _ _ (ord_pred' _)); first ssromega;
     move=> p k Hk arr' /=...
   have {arr'} ->:
-       arr' = [ffun ix =>
-               arr ((p * tperm (fin_decode (ltnidx_l (ltnW Hij')))
-                               (fin_decode (ltnidx_rp (ltnm0m Hij'))))%g ix)]
+       arr' = [ffun ix => arr
+               ((p * tperm (fin_decode (idx_of_iter (ltnW Hij')))
+                           (fin_decode (idx_of_pred_iter (ltnm0m Hij'))))%g ix)]
     by apply/ffunP => ix; rewrite !ffunE permM.
   set arr' := [ffun ix => arr _] => Hp Hpart; constructor.
   + rewrite perm_onM //; [ apply/(subset_trans Hp) | ]; apply/subsetP => ix;
@@ -174,13 +174,15 @@ case: {2 3}(i'.+1 < j') (erefl (i'.+1 < j')) => [Hij' | /negbT];
   + move=> ix /andP [H H0]; case: (boolP (i' < ix < j'.-1)) => [/Hpart // | H1].
     rewrite ffunE permE /= (out_perm Hp) ?inE ?fin_decodeK //
             -(inj_tperm _ _ _ (@fin_decode_inj _)).
-    move: (Hj'1 (ltnidx_rp (ltnm0m Hij'))) (Hi'1 (ltnidx_l (ltnW Hij')))
+    move: (Hj'1 (idx_of_pred_iter (ltnm0m Hij')))
+          (Hi'1 (idx_of_iter (ltnW Hij')))
           (Hi'2 ix) (Hj'2 ix); case: tpermP; ssromega.
 - rewrite leq_eqVlt ltnS -{2}(perm_ffunE1 arr) => Hij'; constructor;
     rewrite ?perm_on1 //= => ix /andP [H H0]; rewrite ffunE permE.
   case/predU1P: Hij' => Hij'; last by move: (Hi'2 ix) (Hj'2 ix); ssromega.
   have Hij'' : i' < j' by rewrite Hij'.
-  move: (Hi'1 (ltnidx_l Hij'') erefl) (Hj'1 (ltnidx_l Hij'') Hij'); ssromega.
+  move: (Hi'1 (idx_of_iter Hij'') erefl) (Hj'1 (idx_of_iter Hij'') Hij').
+  ssromega.
 Qed.
 
 Definition quicksort_rec :
@@ -195,12 +197,12 @@ Definition quicksort_rec :
      (fun (j : 'I_#|I|.+1) recr =>
         match i.+1 < j as cij return i.+1 < j = cij -> _ with
           | true => fun Hij : i.+1 < j =>
-            let i' := ltnidx_l (ltnW Hij) in
-            let si := ltnidx_ls (ltnW Hij) in
+            let i' := idx_of_iter (ltnW Hij) in
+            let si := ord_leq (ltnW Hij) in
             mlet pivot := astate_GET i' in
             mlet '(exist k Hk) := @partition pivot si j (ltnW Hij) in
             let Hk' : 0 < k := ltac:(by case/andP: Hk => /ltnm0m) in
-            let pk := ltnidx_rp (j := k) Hk' in
+            let pk := idx_of_pred_iter (j := k) Hk' in
             mlet x := astate_GET pk in
             astate_SET i' x;; astate_SET pk pivot;;
             recr (ord_pred' (i := k) Hk')
@@ -248,9 +250,9 @@ case: {2 3}(i.+1 < j) (erefl (i.+1 < j)) => [| /negbT];
   rewrite -/(is_true _) -?leqNgt => Hij; rewrite !run_AStateE /=;
   last by rewrite -{2}(perm_ffunE1 arr);
           apply QuicksortRecSpec_; rewrite ?perm_on1 //; ssromega.
-case: (run_partition _ (i := ltnidx_ls (ltnW Hij))) => /= pp k Hk...
-set ix_pivot := ltnidx_l (ltnW Hij).
-set ix_part := ltnidx_rp _.
+case: (run_partition _ (i := ord_leq (ltnW Hij))) => /= pp k Hk...
+set ix_pivot := idx_of_iter (ltnW Hij).
+set ix_part := idx_of_pred_iter _.
 set arr' := ffun_set _ _ _.
 move=> Hpp Hpart.
 have {arr'} ->:
@@ -275,7 +277,7 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
     rewrite !inE !fin_decodeK => H4 H5.
   rewrite (out_perm (x := pr _) Hpl); last by rewrite !inE; ssromega.
   apply Hcmp_trans with (arr (fin_decode ix_pivot)); first apply Hcmp_asym;
-    rewrite -(fin_encodeK (tperm _ _ _)) -(ffunE (fun ix => arr (pp ix))) Hpart
+    rewrite -[tperm _ _ _]fin_encodeK -(ffunE (fun ix => arr (pp ix))) Hpart
             (inj_tperm _ _ _ (@fin_encode_inj _)) !fin_decodeK;
     case: tpermP; ssromega.
 - move/ord_inj in H3; subst ix' => {H2}.
@@ -292,7 +294,7 @@ case: (ltngtP ix ix_part) (ltngtP ix' ix_part) => H2 [] H3; try ssromega.
   move: (perm_closed (fin_decode ix') Hpr); rewrite !inE !fin_decodeK => H2.
   rewrite (out_perm Hpr) ?(out_perm Hpl) ?tpermL 1?(out_perm Hpp);
     try by rewrite ?inE ?fin_decodeK; ssromega.
-  rewrite -(fin_encodeK (pr _)) -(inj_tperm _ _ _ (@fin_decode_inj _))
+  rewrite -[pr _]fin_encodeK -(inj_tperm _ _ _ (@fin_decode_inj _))
           -(ffunE (fun ix => arr (pp ix))) tpermD ?Hpart; ssromega.
 Qed.
 
