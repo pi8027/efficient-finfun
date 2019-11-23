@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-eval `opam config env --switch=4.07.0+flambda`
+eval `opam config env --switch=4.08.1+flambda`
 
 cd `dirname $0`
 BASEDIR=`pwd`
@@ -34,7 +34,7 @@ yes_no_prompt "Coq, MathComp and the regular language library will be rebuilt. D
 foreach dir (coq-orig coq-mod)
 pushd $dir
   envset $dir
-  ./configure -local -native-compiler yes -camlp5dir $(ocamlfind query camlp5)
+  ./configure -local -native-compiler yes -bin-annot -flambda-opts '-O3 -unbox-closures'
   make archclean clean
   make -j 8 world byte
 popd
@@ -44,8 +44,7 @@ foreach dir (math-comp-orig math-comp-mod)
 pushd $dir/mathcomp
   envset $dir
   make clean
-  make only COQFLAGS="-q $COQLIB -debug -native-compiler" -j \
-    TGTS='all/all.vo'
+  make only COQFLAGS="-q $COQLIB -native-compiler yes" -j
 popd
 end
 
@@ -65,6 +64,6 @@ pushd $dir
   patch -p1 < ../regular.patch
   coq_makefile -R . regular $COQLIB -f Make -o Makefile
   make clean
-  make COQFLAGS="-q -debug -native-compiler" -j 8
+  make COQFLAGS="-q -native-compiler yes" -j 8
 popd
 end

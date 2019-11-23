@@ -143,16 +143,16 @@ for i_ = 0 to i_max - 1 do
         test i (gen_list (seeds.(i_ * j_max + j)) i)) in
     let (time1, res1) = benchmark
       (fun n arr -> let arr' = Array.copy arr in
-                    Array.stable_sort Pervasives.compare arr'; arr') in
+                    Array.stable_sort Stdlib.compare arr'; arr') in
     let (time2, res2) = benchmark
       (fun n arr -> let arr' = Array.copy arr in
-                    Array.sort Pervasives.compare arr'; arr') in
+                    Array.sort Stdlib.compare arr'; arr') in
     let (time3, res3) = benchmark
       (fun n arr -> let arr' = Array.copy arr in
                     quicksort (<=) arr'; arr') in
     let (time4, res4) = benchmark
       (fun n arr -> let arr' = Array.copy arr in
-                    msort Pervasives.compare arr'; arr') in
+                    msort Stdlib.compare arr'; arr') in
     let (time5, res5) = benchmark
       (fun n arr -> QS.quicksort_ (Qs.ordinal_finType n) (<=) arr) in
     let (time6, res6) = benchmark

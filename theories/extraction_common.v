@@ -108,12 +108,12 @@ Extract Inductive mem_pred => "pred" ["(* Mem *)"] "(* mem_pred_rec *)".
 Extraction Inline Option.default Option.bind Option.map.
 
 Extraction Inline
-  fun_of_simpl funcomp pcomp
-  SimplPred pred_of_simpl pred0 pred1 predT predI predU predC predD preim
-  simpl_rel SimplRel rel_of_simpl_rel relU
-  mkPredType predPredType simplPredType boolfunPredType seq_predType
-  pred_of_mem memPredType sort_of_simpl_pred pred_of_argType mem in_mem
-  pred_of_mem_pred has_quality.
+  fun_of_simpl comp pcomp
+  SimplPred pred0 pred1 predT predI predU predC predD preim
+  pred_of_simpl simplPredType pred_of_argType
+  simpl_rel rel_of_simpl rel_of_simpl_rel SimplRel relU relpre
+  PredType clone_pred predPredType boolfunPredType simplPredType seq_predType
+  pred_of_mem memPredType in_mem simpl_of_mem mem has_quality.
 
 (* eqTypes *)
 

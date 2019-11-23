@@ -12,10 +12,10 @@ Definition condrev (r : bool) (xs : seq A) :=
   if r then rev xs else xs.
 
 Lemma perm_catrev (xs ys : seq A) : perm_eq (catrev xs ys) (xs ++ ys).
-Proof. by rewrite catrevE perm_cat2r perm_eq_sym perm_eq_rev. Qed.
+Proof. by rewrite catrevE perm_cat2r perm_rev. Qed.
 
 Lemma perm_condrev (r : bool) (xs : seq A) : perm_eq (condrev r xs) xs.
-Proof. by case: r => //=; rewrite perm_eq_sym perm_eq_rev. Qed.
+Proof. by case: r => //=; rewrite perm_rev. Qed.
 
 Lemma count_flatten (xss : seq (seq A)) x:
   count x (flatten xss) = \sum_(xs <- xss) (count x xs).
@@ -26,9 +26,7 @@ Qed.
 
 Lemma perm_flatten (xs ys : seq (seq A)) :
   perm_eq xs ys -> perm_eq (flatten xs) (flatten ys).
-Proof.
-move=> ?; apply/perm_eqP => x; rewrite !count_flatten; exact: eq_big_perm.
-Qed.
+Proof. move=> ?; apply/permP => x; rewrite !count_flatten; exact: perm_big. Qed.
 
 Fixpoint perm_common (xs : seq A) : seq A -> seq A :=
   if xs isn't x :: xs
@@ -65,14 +63,14 @@ case: eqP => [-> | _]; first by
   case: {IHx IHy} (perm_elim xs ys) (IHx ys) => /= xs' ys'; rewrite !perm_cons.
 case: ifP => _; first by
   case: (perm_elim xs (y :: ys)) (IHx (y :: ys)) => /= xs' ys' [H ->];
-    split=> //; move/perm_eqlP/perm_eqrP:
+    split=> //; move/permPl/permPr:
       (perm_catC (perm_common xs (y :: ys)) (x :: xs')) => -> /=;
-    rewrite perm_cons; move/perm_eqlP: H => ->; apply/perm_eqlP/perm_catC.
+    rewrite perm_cons; move/permPl: H => ->; exact/permPl/perm_catC.
 case: (_ ys) {IHx} IHy => xs' ys' [->].
 set c := (fix perm_common' (ys : seq A) : seq A := _).
 move=> H; split=> //.
-move/perm_eqlP/perm_eqrP: (perm_catC (c ys) (y :: ys')) => -> /=.
-by rewrite perm_cons; move/perm_eqlP: H => ->; apply/perm_eqlP/perm_catC.
+move/permPl/permPr: (perm_catC (c ys) (y :: ys')) => -> /=.
+rewrite perm_cons; move/permPl: H => ->; exact/permPl/perm_catC.
 Qed.
 
 End Perm.
@@ -151,14 +149,14 @@ Lemma merge_sort_push_perm (xs : seq T) (yss : seq (seq T)) :
   perm_eq (flatten (merge_sort_push leT xs yss)) (xs ++ flatten yss).
 Proof.
 elim: yss xs => //= -[| y ys] yss IH xs //=.
-by rewrite (perm_eqlP (IH _)) -cat_cons catA perm_cat2r perm_merge.
+by rewrite (permPl (IH _)) -cat_cons catA perm_cat2r perm_merge.
 Qed.
 
 Lemma merge_sort_pop_perm (xs : seq T) (yss : seq (seq T)) :
   perm_eq (merge_sort_pop leT xs yss) (xs ++ flatten yss).
 Proof.
 elim: yss xs => [| ys yss IH] xs; rewrite ?cats0 //=.
-by rewrite (perm_eqlP (IH _)) catA perm_cat2r perm_merge.
+by rewrite (permPl (IH _)) catA perm_cat2r perm_merge.
 Qed.
 
 End Sort_ext.
@@ -168,19 +166,18 @@ Lemma sort_Seq_perm (A : eqType) (m : Quote.varmap (seq A)) (xs : Seq) :
           (denote_Seq m xs).
 Proof.
 move: (merge_sort_pop_perm geq_index [::] (sort_Seq_rec xs [::])).
-rewrite /sort_Seq => /= /perm_flatten_map /perm_eqlP ->.
+rewrite /sort_Seq => /= /perm_flatten_map /permPl ->.
 rewrite -[denote_Seq _ _]cats0
         -[X in _ ++ X]/(flatten_map (Quote.varmap_find [::] ^~ m)
                                     (flatten [::])).
 elim: xs (Nil (seq _)) => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
-  try rewrite -?(perm_eqrP (IHy _)).
+  try rewrite -?(permPr (IHy _)).
 - by move: (merge_sort_push_perm geq_index [:: i] xss)
-    => /= /perm_flatten_map /perm_eqlP ->.
-- by rewrite (perm_eqlP (IHy _)) perm_eq_sym -catA perm_catCA perm_cat2l
-             perm_eq_sym IHx.
-- by rewrite (perm_eqlP (IHy _)) perm_eq_sym catrevE -catA perm_catCA perm_cat2l
-             perm_eq_sym (perm_eqlP (IHx _)) perm_cat2r perm_eq_rev.
-- by rewrite (perm_eqlP (IH _)) perm_cat2r perm_eq_rev.
+    => /= /perm_flatten_map /permPl ->.
+- by rewrite (permPl (IHy _)) perm_sym -catA perm_catCA perm_cat2l perm_sym IHx.
+- rewrite (permPl (IHy _)) perm_sym catrevE -catA perm_catCA perm_cat2l.
+  by rewrite perm_sym (permPl (IHx _)) perm_cat2r perm_sym perm_rev.
+- by rewrite (permPl (IH _)) perm_cat2r perm_sym perm_rev.
 Qed.
 
 Lemma perm_eqs_normE
@@ -190,8 +187,8 @@ Proof.
 elim: xs => [| [[b ys] zs] [| x xs] IH] //=;
   case: (perm_elim _ _ _) (perm_elim_perm geq_index (sort_Seq ys) (sort_Seq zs))
     => /= ys' zs' [];
-  rewrite -(perm_eqlP (sort_Seq_perm _ _)) -(perm_eqrP (sort_Seq_perm _ _)) =>
-    /perm_flatten_map /perm_eqlP -> /perm_flatten_map /perm_eqrP ->;
+  rewrite -(permPl (sort_Seq_perm _ _)) -(permPr (sort_Seq_perm _ _)) =>
+    /perm_flatten_map /permPl -> /perm_flatten_map /permPr ->;
   rewrite !flatten_mapE !map_cat !flatten_cat perm_cat2l;
   case=> // Hl Hr; split=> //; exact: IH.
 Qed.
@@ -322,8 +319,8 @@ Example ex2 (A : eqType) (xs ys zs xs' ys' zs' : seq A) :
   perm_eq (catrev xs ys ++ zs) (xs' ++ rev ys' ++ zs').
 Proof.
 Time autoperm. (* preserves the order of terms. *)
-rewrite -(perm_cat2r (ys ++ zs)) => /perm_eqlP ->.
-rewrite perm_cat2l -(perm_cat2r zs) => /perm_eqlP ->.
+rewrite -(perm_cat2r (ys ++ zs)) => /permPl ->.
+rewrite perm_cat2l -(perm_cat2r zs) => /permPl ->.
 by rewrite perm_cat2l.
 Qed.
 
@@ -425,9 +422,9 @@ have {1}->: xs = flatten xss by rewrite {}/xss; elim: xs => //= x xs {1}->.
 move: (Acc_ltsize _) => Hi.
 elim/Acc_ind: xss / Hi (Hi) => {xs} -[| xs [| xs' xss]] _ IH Hi;
   rewrite -Fix_F_eq //; first by rewrite /= cats0.
-apply/(perm_eq_trans _ (IH _ _ _)); last by rewrite /= !ltnS merge_pair_leq.
+apply/(perm_trans _ (IH _ _ _)); last by rewrite /= !ltnS merge_pair_leq.
 elim/list2_rec: {xs xs' xss IH Hi} [:: _, _ & _] => //= xs xs' xss.
-rewrite -(perm_cat2l (merge xs xs')) => /perm_eqrP <-; autoperm.
+rewrite -(perm_cat2l (merge xs xs')) => /permPr <-; autoperm.
 by elim: xs xs' {xss} => // x xs IHx;
   elim=> [| y ys IHy /=]; last case: ifP; autoperm.
 Qed.
@@ -436,8 +433,7 @@ Definition sort_finfun (I : finType) (a : {ffun I -> A}) : {ffun I -> A} :=
   let '(Tuple xs Hxs) := fgraph a in
   Finfun
     (@Tuple #|I| A (sort xs)
-                   (eq_ind _ (eq_op ^~ #|I|) Hxs _
-                           (perm_eq_size (perm_sort xs)))).
+                   (eq_ind _ (eq_op ^~ #|I|) Hxs _ (perm_size (perm_sort xs)))).
 
 End Mergesort.
 End Mergesort.
@@ -493,7 +489,7 @@ Lemma merge_perm (xs ys acc : seq A) :
   perm_eq (merge xs ys acc) (xs ++ ys ++ acc).
 Proof.
 elim: xs ys acc => [ys acc /= | x xs IHx]; last elim=> [| y ys IHy] acc /=;
-  last (case: ifP => _; rewrite ?(perm_eqlP (IHx _ _)) ?(perm_eqlP (IHy _)));
+  last (case: ifP => _; rewrite ?(permPl (IHx _ _)) ?(permPl (IHy _)));
   autoperm.
 Qed.
 
@@ -558,8 +554,8 @@ Lemma merge_sort_push_perm (r : bool) (xs : seq A) (yss : seq (seq A)) :
   perm_eq (flatten (merge_sort_push r xs yss)) (xs ++ flatten yss).
 Proof.
 elim: yss r xs => [| [| y ys] yss IH] r xs //=;
-  rewrite (perm_eqlP (IH _ _)); autoperm; case: r;
-  rewrite -/(merge _ (_ :: _) _) (perm_eqlP (merge_perm _ _ _ [::])); autoperm.
+  rewrite (permPl (IH _ _)); autoperm; case: r;
+  rewrite -/(merge _ (_ :: _) _) (permPl (merge_perm _ _ _ [::])); autoperm.
 Qed.
 
 Lemma merge_sort_push_sorted (r : bool) (xs : seq A) (yss : seq (seq A)) :
@@ -591,7 +587,7 @@ subst xs'; case: r H H2 {H3} => H H2;
   rewrite merge_sorted 1?(lock merge) //= -?lock.
 - case: {yss IH} (filter _ yss) H1 => //= ys' yss /andP [H1 ->];
     rewrite andbT; apply/allP => x';
-    rewrite (perm_eq_mem (merge_perm _ _ _ _)) cats0 mem_cat => /orP [];
+    rewrite (perm_mem (merge_perm _ _ _ _)) cats0 mem_cat => /orP [];
     last by move: x'; apply/allP.
   by case/andP: H1 => H1 _; case/(allP H0)/andP => H3 _;
     apply/allP => y' /(allP H1) H4; apply: (Hcmp2 H4 H3).
@@ -599,7 +595,7 @@ subst xs'; case: r H H2 {H3} => H H2;
     rewrite inE => /orP [/eqP -> | /(allP H4)].
 - case: {yss IH} (filter _ yss) H1; rewrite (lock all) (lock merge)
     => //= ys' yss /andP []; rewrite -!lock => H1 ->; rewrite andbT.
-  apply/allP => x'; rewrite (perm_eq_mem (merge_perm _ _ _ _)) cats0 mem_cat
+  apply/allP => x'; rewrite (perm_mem (merge_perm _ _ _ _)) cats0 mem_cat
     => /orP [/(allP H1) |] // /(allP H0) /andP [H3 _].
   by case/andP: H1 => H4 _;
     apply/allP => y' /(allP H4) H5; apply: (Hcmp2 H5 H3).
@@ -626,8 +622,8 @@ Lemma merge_sort_pop_perm (r : bool) (xs : seq A) (yss : seq (seq A)) :
 Proof.
 move: yss r xs; fix IH 1 => -[| [[| [| y ys] yss] | y ys yss]] r xs //=;
   (try by case: r => /=; autoperm);
-  rewrite ?negbK ?if_neg (perm_eqlP (IH _ _ _)); autoperm;
-  case: r; rewrite -/(merge _ (_ :: _) _) (perm_eqlP (merge_perm _ _ _ _));
+  rewrite ?negbK ?if_neg (permPl (IH _ _ _)); autoperm;
+  case: r; rewrite -/(merge _ (_ :: _) _) (permPl (merge_perm _ _ _ _));
   autoperm.
 Qed.
 
@@ -653,8 +649,8 @@ move: yss r xs; fix IH 1 => -[| [[| [| y ys] yss] | y ys yss]] r xs //=.
   + case: {yss H3} (filter _ yss) H1 =>
       // ys' yss /= /andP [] /andP [] H1 H3 ->; rewrite andbT; apply/allP => x.
     rewrite
-      -lock (fun_if (fun xs => x \in xs)) !(perm_eq_mem (merge_perm _ _ _ _))
-      !cats0 (perm_eq_mem (introT perm_eqlP (perm_catC _ _)))
+      -lock (fun_if (fun xs => x \in xs)) !(perm_mem (merge_perm _ _ _ _))
+      !cats0 (perm_mem (introT permPl (perm_catC _ _)))
       if_same mem_cat mem_rev inE -orbA.
     by move=> /or3P [/eqP -> | /(allP H3) |] // /(allP H0) /andP [H4 _];
       apply/allP => y' /(allP H1) H5; apply: (Hcmp2 H5 H4).
@@ -667,8 +663,8 @@ move: yss r xs; fix IH 1 => -[| [[| [| y ys] yss] | y ys yss]] r xs //=.
   + case: {yss H3} (filter _ yss) H1 =>
       // ys' yss /= /andP [] /andP [] H1 H3 ->; rewrite andbT; apply/allP => x.
     rewrite
-      -lock (fun_if (fun xs => x \in xs)) !(perm_eq_mem (merge_perm _ _ _ _))
-      !cats0 (perm_eq_mem (introT perm_eqlP (perm_catC _ _)))
+      -lock (fun_if (fun xs => x \in xs)) !(perm_mem (merge_perm _ _ _ _))
+      !cats0 (perm_mem (introT permPl (perm_catC _ _)))
       if_same mem_cat inE -orbA.
     by move=> /or3P [/eqP -> | /(allP H3) |] // /(allP H0) /andP [H4 _];
       apply/allP => y' /(allP H1) H5; apply: (Hcmp2 H5 H4).
@@ -688,9 +684,9 @@ Lemma merge_sort_rec_perm (xss : seq (seq A)) (xs : seq A) :
   perm_eq (merge_sort_rec xss xs) (xs ++ flatten xss).
 Proof.
 move: xs xss; fix IH 1 => -[| x [| x' xs]] xss /=;
-  rewrite ?(perm_eqlP (merge_sort_pop_perm _ _ _)); autoperm;
-  case: ifP => _; rewrite (perm_eqlP (IH _ _)); autoperm;
-  rewrite (perm_eqlP (merge_sort_push_perm _ _ _)); autoperm.
+  rewrite ?(permPl (merge_sort_pop_perm _ _ _)); autoperm;
+  case: ifP => _; rewrite (permPl (IH _ _)); autoperm;
+  rewrite (permPl (merge_sort_push_perm _ _ _)); autoperm.
 Qed.
 
 Lemma merge_sort_rec_sorted (xss : seq (seq A)) (xs : seq A) :
@@ -717,12 +713,12 @@ move: (merge_sort_push_sorted (r := false) H3 H4 H2) => /= /andP [] H5 H6.
 apply: IH => // {H2 H3 H4 H6}; first exact: (path_sorted H0).
 move: H5; set xss' := filter _ _.
 have: perm_eq (flatten xss') (x' :: x :: flatten xss) by
-  rewrite flatten_filter (perm_eqlP (merge_sort_push_perm _ _ _));
+  rewrite flatten_filter (permPl (merge_sort_push_perm _ _ _));
   case: ifP; autoperm.
 case: xss' => //= xs' xss' H2 ->; rewrite andbT.
 apply/allP => y /(allP (order_path_min Hcmp2 H0)) H3; apply/allP => x''.
 move/(@or_introl _ (x'' \in flatten xss'))/orP;
-  rewrite -mem_cat (perm_eq_mem H2) !inE => /or3P [/eqP -> // | /eqP -> | H4];
+  rewrite -mem_cat (perm_mem H2) !inE => /or3P [/eqP -> // | /eqP -> | H4];
   apply: (Hcmp2 _ H3) => // {xs' xss' y H H0 H2 H3}.
 have H: x' \in [:: x, x' & xs] by rewrite !inE eqxx orbT.
 elim: {x xs} xss x' [:: x, x' & xs] H1 H H4
@@ -735,7 +731,7 @@ Qed.
 Definition sort := merge_sort_rec [::].
 
 Lemma perm_sort (xs : seq A) : perm_eq (sort xs) xs.
-Proof. by rewrite /sort (perm_eqlP (merge_sort_rec_perm _ _)) cats0. Qed.
+Proof. by rewrite /sort (permPl (merge_sort_rec_perm _ _)) cats0. Qed.
 
 Lemma sort_sorted (xs : seq A) : sorted cmp2 xs -> sorted cmplex (sort xs).
 Proof. move=> ?; exact: merge_sort_rec_sorted. Qed.

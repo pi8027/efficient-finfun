@@ -1,11 +1,48 @@
-Require Import all_ssreflect Coq.quote.Quote.
+Require Import all_ssreflect.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Module Quote.
+Section Quote.
+
+Variable A : Type.
+
+Inductive varmap : Type :=
+  | Empty_vm : varmap
+  | Node_vm : A -> varmap -> varmap -> varmap.
+
+Inductive index : Set :=
+  | Left_idx : index -> index
+  | Right_idx : index -> index
+  | End_idx : index.
+
+Fixpoint varmap_find (default_value : A) (i : index) (v : varmap) : A :=
+  match i, v with
+  | End_idx, Node_vm x _ _ => x
+  | Right_idx i1, Node_vm x v1 v2 => varmap_find default_value i1 v2
+  | Left_idx i1, Node_vm x v1 v2 => varmap_find default_value i1 v1
+  | _, _ => default_value
+  end.
+
+Fixpoint index_eq (n m : index) : bool :=
+  match n, m with
+  | End_idx, End_idx => true
+  | Left_idx n', Left_idx m' => index_eq n' m'
+  | Right_idx n', Right_idx m' => index_eq n' m'
+  | _, _ => false
+  end.
+
+End Quote.
+End Quote.
+Import Quote.
+
 Lemma eqindexP : Equality.axiom index_eq.
-Proof. by move=> x y; apply: (iffP idP) => [/index_eq_prop | <-]; elim: x. Qed.
+Proof.
+move=> x y; apply: (iffP idP) => [|<-]; last by elim: x.
+by elim: x y => [x IH|x IH|] [y|y|] //= /IH ->.
+Qed.
 
 Canonical index_eqMixin := EqMixin eqindexP.
 Canonical index_eqType := Eval hnf in EqType index index_eqMixin.

@@ -16,7 +16,7 @@ Extract Inlined Constant subn' => "(* subn' *)(-)".
 (* ordinal *)
 
 Extraction Inline
-  lshift' rshift' ltnidx_l ltnidx_ls ltnidx_rp ord_pred ord_pred'.
+  idx_of_iter idx_of_pred_iter ord_leq ord_pred ord_pred'.
 
 (* copyTypes *)
 

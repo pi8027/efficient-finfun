@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-eval `opam config env --switch=4.07.0+flambda`
+eval `opam config env --switch=4.08.1+flambda`
 
 cd `dirname $0`
 BASEDIR=`pwd`
@@ -57,14 +57,14 @@ pushd $dir
   echo "((coq-mode . ((coq-prog-name . \"$COQBIN/coqtop\"))))" > .dir-locals.el
 
   make -j ${JOBS:-8} VFILES="$vfiles" PATH="$COQBIN:$PATH" \
-       COQLIBS="$COQLIB" COQFLAGS="-debug -native-compiler"
+       COQLIBS="$COQLIB" COQFLAGS="-native-compiler yes"
 
 popd # theories/*
 end
 
 #### Benchmarks
 
-eval `opam config env --switch=4.07.0+flambda+no-flat-float-array`
+eval `opam config env --switch=4.08.1+flambda+no-flat-float-array`
 
 pushd ocaml
 

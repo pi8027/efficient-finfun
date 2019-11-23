@@ -28,13 +28,13 @@ Lemma sort_Seq_perm (A : eqType) (m : Quote.varmap (seq A)) (xs : Seq) :
           (denote_Seq m xs).
 Proof.
 move: (merge_sort_pop_perm geq_index false [::] (sort_Seq_rec xs [::])).
-rewrite /sort_Seq => /= /perm_flatten_map /perm_eqlP ->.
+rewrite /sort_Seq => /= /perm_flatten_map /permPl ->.
 rewrite -[denote_Seq _ _]cats0
         -[X in _ ++ X]/(flatten_map (Quote.varmap_find [::] ^~ m) (flatten [::])).
 elim: xs (Nil (seq _)) => [i | | xs IHx ys IHy | xs IHx ys IHy | xs IH] xss //=;
-  try rewrite ?(perm_eqlP (IHy _)); autoperm.
+  try rewrite ?(permPl (IHy _)); autoperm.
 by move: (merge_sort_push_perm geq_index false [:: i] xss)
-  => /= /perm_flatten_map /perm_eqlP ->.
+  => /= /perm_flatten_map /permPl ->.
 Qed.
 
 Lemma perm_eqs_normE
@@ -44,8 +44,8 @@ Proof.
 by elim: xs => [| [[b ys] zs] [| x xs] IH] //=;
   case: (perm_elim _ _ _) (perm_elim_perm geq_index (sort_Seq ys) (sort_Seq zs))
     => /= ys' zs' [];
-  rewrite -(perm_eqlP (sort_Seq_perm _ _)) -(perm_eqrP (sort_Seq_perm _ _)) =>
-    /perm_flatten_map /perm_eqlP -> /perm_flatten_map /perm_eqrP ->;
+  rewrite -(permPl (sort_Seq_perm _ _)) -(permPr (sort_Seq_perm _ _)) =>
+    /perm_flatten_map /permPl -> /perm_flatten_map /permPr ->;
   rewrite !flatten_mapE !map_cat !flatten_cat perm_cat2l;
   case=> // Hl Hr; split=> //; apply: IH.
 Qed.

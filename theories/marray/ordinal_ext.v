@@ -13,52 +13,6 @@ Definition subn' (n m : nat) (H : m <= n) := n - m.
 Lemma ltnm0m (n m : nat) : n < m -> 0 < m.
 Proof. by case: m. Qed.
 
-(* Extended comparison predicates *)
-
-Variant leq_xor_gtn' m n :
-    bool -> bool -> bool -> bool ->
-    nat -> nat -> nat -> nat -> nat -> nat -> Set :=
-  | LeqNotGtn' of m <= n :
-    leq_xor_gtn' m n (m < n) false true (n <= m) n n m m 0 (n - m)
-  | GtnNotLeq' of n < m :
-    leq_xor_gtn' m n false true false true m m n n (m - n) 0.
-
-Lemma leqP' m n : leq_xor_gtn' m n
-  (m < n) (n < m) (m <= n) (n <= m)
-  (maxn m n) (maxn n m) (minn m n) (minn n m)
-  (m - n) (n - m).
-Proof.
-rewrite (maxnC n) (minnC n); case: (leqP m n) => H.
-- rewrite (maxn_idPr H) (minn_idPl H).
-  by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
-- rewrite (ltnW H) ltnNge leq_eqVlt H orbT
-          (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
-  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
-Qed.
-
-Variant compare_nat' m n :
-    bool -> bool -> bool -> bool -> bool ->
-    nat -> nat -> nat -> nat -> nat -> nat -> Set :=
-  | CompareNatLt' of m < n :
-    compare_nat' m n true false false true false n n m m 0 (n - m)
-  | CompareNatGt' of m > n :
-    compare_nat' m n false true false false true m m n n (m - n) 0
-  | CompareNatEq' of m = n :
-    compare_nat' m n false false true true true m m m m 0 0.
-
-Lemma ltngtP' m n : compare_nat' m n
-  (m < n) (n < m) (m == n) (m <= n) (n <= m)
-  (maxn m n) (maxn n m) (minn m n) (minn n m)
-  (m - n) (n - m).
-Proof.
-rewrite (maxnC n) (minnC n).
-case: (ltngtP m n) => H; last by rewrite -H maxnn minnn subnn; constructor.
-- rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
-  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
-- rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
-  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
-Qed.
-
 (* ssromega *)
 
 Module ssromega.
@@ -250,23 +204,17 @@ Qed.
 Lemma well_founded_ordlt (n : nat) : well_founded (fun i j : 'I_n => i < j).
 Proof.
 move=> i; elim: {3}n i (ltn_ord i) => [// |] m IH i.
-by rewrite ltnS => H; constructor=> j H0; apply/IH/(leq_trans H0).
+rewrite ltnS => H; constructor=> j H0; exact/IH/(leq_trans H0).
 Qed.
 
-Definition lshift' (m n : nat) (i : 'I_n) : 'I_(m + n) :=
-  @Ordinal (m + n) i (leq_trans (ltn_ord i) (leq_addl m n)).
-
-Definition rshift' (m n : nat) (i : 'I_m) : 'I_(m + n) :=
-  @Ordinal (m + n) (n + i) ltac:(by rewrite addnC ltn_add2r ltn_ord).
-
-Definition ltnidx_l (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
+Definition idx_of_iter (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n :=
   @Ordinal n i (leq_trans H (ltn_ord j)).
 
-Definition ltnidx_ls (n i : nat) (j : 'I_n.+1) (H : i < j) : 'I_n.+1 :=
-  @Ordinal n.+1 i.+1 (leq_trans H (ltn_ord j)).
-
-Definition ltnidx_rp (n : nat) (j : 'I_n.+1) (H : 0 < j) : 'I_n :=
+Definition idx_of_pred_iter (n : nat) (j : 'I_n.+1) (H : 0 < j) : 'I_n :=
   @Ordinal n (@predn' j H) ltac:(by case: j H => -[]).
+
+Definition ord_leq (n i : nat) (j : 'I_n) (H : i <= j) : 'I_n :=
+  @Ordinal n i (leq_ltn_trans H (ltn_ord j)).
 
 Definition ord_pred (n : nat) (i : 'I_n) : 'I_n :=
   @Ordinal n i.-1 ltac:(by case: i => -[] //= i /ltnW).

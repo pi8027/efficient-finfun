@@ -158,7 +158,7 @@ Proof.
 rewrite /reachable' /enum_reachable; apply: (iffP dfsP).
 - case=> qs H -> {q}; elim: qs p H => //=.
   + by move=> p _; exists [::].
-  + move=> q qs IH p /andP [] /mapP [] x H -> {q} /IH {IH} [xs H0].
+  + move=> q qs IH p /andP [] /mapP [] x H -> {q} {}/IH [xs H0].
     by exists (x :: xs).
 - case=> xs -> {q}; exists (dfa_run p xs) => //=.
   elim: xs p => //= x xs IH p; rewrite IH andbT.
@@ -344,7 +344,7 @@ move=> ch w [m H]; rewrite woa_step; case: eqP => [H0 | _].
 - exists m; rewrite -{3}H /=; congr (_ :: word_of_assign _ ++ _);
     apply/ffunP => /= i; rewrite !ffunE.
   + by rewrite odd_add oddb odd_mul /= andbF addbF.
-  + by rewrite addnC divnMDl // divn_small ?ltnS ?leq_b1.
+  + by rewrite addnC divnMDl // divn_small ?addn0 ?ltnS ?leq_b1.
 Qed.
 
 Lemma aow_cat (w1 w2 : seq (bool ^ fvs)) :
@@ -361,7 +361,9 @@ Proof. by elim: m => //= m ->; apply/ffunP => i; rewrite !ffunE. Qed.
 
 Lemma aow_cat_nseq0 w m :
   assign_of_word (w ++ nseq m [ffun => false]) = assign_of_word w.
-Proof. by apply/ffunP => /= i; rewrite aow_cat aow_nseq0 !ffunE muln0. Qed.
+Proof.
+by apply/ffunP => /= i; rewrite aow_cat aow_nseq0 !ffunE muln0 ?addn0.
+Qed.
 
 End word_assign_conversion.
 
@@ -495,7 +497,7 @@ rewrite /exists_nfa_fin; apply: (iffP hasP).
   + by move=> q _ H; exists 0, [::];
       rewrite delta_accept cons_tuple_const; split.
   + move=> q' qs IH q /andP [] /mapP [] /= b _ -> {q'}
-            /IH H /H {IH H} [x0] [w] [H H0].
+            {}/IH H {}/H [x0] [w] [H H0].
     exists (b + x0 * 2), (cons_tuple b [ffun => false] :: w).
     split; first by [].
     apply/ffunP => /= i; rewrite ffunE H0 /cons_tuple !ffunE.
@@ -512,7 +514,7 @@ rewrite /exists_nfa_fin; apply: (iffP hasP).
     rewrite /cons_tuple !ffunE; case: splitP => /= i' H.
   + by move=> <-; rewrite odd_add odd_mul /= andbF addbF oddb.
   + by rewrite !ffunE; case: (ch i).
-  + by move=> <-; rewrite addnC divnMDl // divn_small ?ltnS ?leq_b1.
+  + by move=> <-; rewrite addnC divnMDl // divn_small ?addn0 ?ltnS ?leq_b1.
   + by rewrite ffunE; case: (ch i); case: (assign_of_word w i).
 Qed.
 

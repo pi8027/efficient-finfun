@@ -60,8 +60,28 @@ index c278827..a9cf6db 100644
  
  
  Lemma im_regular (char char' : finType) (h : word char -> word char') L :
+diff --git a/non_regular.v b/non_regular.v
+index 60dd204..065f78b 100644
+--- a/non_regular.v
++++ b/non_regular.v
+@@ -55,7 +55,7 @@ Section NonRegular.
+ 
+   Lemma count_nseq (T : eqType) (c d : T) n :
+     count (pred1 c) (nseq n d) = (c == d) * n.
+-  Proof. elim: n => //= n. rewrite [d == c]eq_sym. by case e: (c == d) => /= ->. Qed.
++  Proof. by elim: n => [|?]; rewrite (muln0, mulnS) //= [d == c]eq_sym => ->. Qed.
+ 
+   Lemma countL n1 n2 : count (pred1 a) (nseq n1 a ++ nseq n2 b) = n1.
+   Proof. by rewrite count_cat !count_nseq (negbTE Hab) eqxx //= mul1n mul0n addn0. Qed.
+@@ -80,4 +80,4 @@ Section NonRegular.
+     move/lP. exact: Lab_eq. apply/lP. by exists n2.
+   Qed.
+ 
+-End NonRegular.
+\ No newline at end of file
++End NonRegular.
 diff --git a/regexp.v b/regexp.v
-index a97bb85..c67d0b4 100644
+index a97bb85..ee27ba4 100644
 --- a/regexp.v
 +++ b/regexp.v
 @@ -137,8 +137,8 @@ Canonical Structure form_eqType := EqType _ regexp_eqMixin.
@@ -75,15 +95,21 @@ index a97bb85..c67d0b4 100644
  
  
  Section ReLang.
-@@ -159,7 +159,7 @@ End ReLang.
+@@ -154,12 +154,12 @@ Fixpoint re_lang (e : regexp char) : dlang char :=
+   | Conc e1 e2 => conc (re_lang e1) (re_lang e2)
+   end.
+ 
+-Canonical Structure req_exp_predType := Eval hnf in mkPredType re_lang.
++Canonical Structure req_exp_predType := Eval hnf in PredType re_lang.
+ End ReLang.
  
  
  Prenex Implicits Plus.
 -Implicit Arguments plusP [char r s w].
-+Arguments plusP [char r s w].
++Arguments plusP {char r s w}.
  
  Notation "'Void'" := (@Void _).
  Notation "'Eps'" := (@Eps _).
 -- 
-2.11.0
+2.20.1
 
